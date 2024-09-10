@@ -42,6 +42,11 @@ uint16_t val0[6];
 
 float task_delay_ms = 1000;
 
+typedef struct {
+    int temp;
+    int t_fine;
+} TempInfo;
+
 esp_err_t sensor_init(void) {
     int i2c_master_port = I2C_NUM_0;
     i2c_config_t conf;
@@ -197,6 +202,17 @@ int bme_softreset(void) {
     return 0;
 }
 
+void bme_get_mode(void) {
+    uint8_t reg_mode = 0x74;
+    uint8_t tmp;
+
+    ret = bme_i2c_read(I2C_NUM_0, &reg_mode, &tmp, 1);
+
+    tmp = tmp & 0x3;
+
+    printf("Valor de BME MODE: %2X \n\n", tmp);
+}
+
 void bme_forced_mode(void) {
     /*
     Fuente: Datasheet[19]
@@ -303,7 +319,7 @@ int bme_check_forced_mode(void) {
     return (tmp == 0b001 && tmp2 == 0x59 && tmp3 == 0x00 && tmp4 == 0b100000 && tmp5 == 0b01010101);
 }
 
-int bme_temp_celsius(uint32_t temp_adc) {
+TempInfo bme_temp_comp(uint32_t temp_adc) {
     // Datasheet[23]
     // https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bme688-ds000.pdf#page=23
 
@@ -329,30 +345,40 @@ int bme_temp_celsius(uint32_t temp_adc) {
     int64_t var1;
     int64_t var2;
     int64_t var3;
-    int t_fine;
-    int calc_temp;
+    TempInfo info;
 
     var1 = ((int32_t)temp_adc >> 3) - ((int32_t)par_t1 << 1);
     var2 = (var1 * (int32_t)par_t2) >> 11;
     var3 = ((var1 >> 1) * (var1 >> 1)) >> 12;
     var3 = ((var3) * ((int32_t)par_t3 << 4)) >> 14;
-    t_fine = (int32_t)(var2 + var3);
-    calc_temp = (((t_fine * 5) + 128) >> 8);
-    return calc_temp;
+    info.t_fine = (int32_t)(var2 + var3);
+    info.temp = (((info.t_fine * 5) + 128) >> 8);
+
+    return info;
 }
 
-void bme_get_mode(void) {
-    uint8_t reg_mode = 0x74;
+uint32_t bme_temp_adc(void) {
     uint8_t tmp;
 
-    ret = bme_i2c_read(I2C_NUM_0, &reg_mode, &tmp, 1);
+    // Se obtienen los datos de temperatura
+    uint8_t forced_temp_addr[] = {0x22, 0x23, 0x24};
 
-    tmp = tmp & 0x3;
+    uint32_t temp_adc = 0;
 
-    printf("Valor de BME MODE: %2X \n\n", tmp);
+    // Datasheet[41]
+    // https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bme688-ds000.pdf#page=41
+
+    bme_i2c_read(I2C_NUM_0, &forced_temp_addr[0], &tmp, 1);
+    temp_adc = temp_adc | tmp << 12;
+    bme_i2c_read(I2C_NUM_0, &forced_temp_addr[1], &tmp, 1);
+    temp_adc = temp_adc | tmp << 4;
+    bme_i2c_read(I2C_NUM_0, &forced_temp_addr[2], &tmp, 1);
+    temp_adc = temp_adc | (tmp & 0xf0) >> 4;
+
+    return temp_adc;
 }
 
-int bme_compensate_pressure(uint32_t press_adc, int t_fine) {
+int bme_press_comp(uint32_t press_adc, int t_fine) {
     // Datasheet[24]
     // https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bme688-ds000.pdf#page=24
 
@@ -410,7 +436,6 @@ int bme_compensate_pressure(uint32_t press_adc, int t_fine) {
     par_p8 = (par_p8_msb << 8) | par_p8_lsb;
     par_p9 = (par_p9_msb << 8) | par_p9_lsb;
 
-
     int64_t var1;
     int64_t var2;
     int64_t var3;
@@ -443,13 +468,12 @@ int bme_compensate_pressure(uint32_t press_adc, int t_fine) {
     return press_comp;
 }
 
-void bme_pressure_pascal(int t_fine) {
+uint32_t bme_press_adc() {
     uint8_t tmp;
 
     uint8_t forced_press_addr[] = {0x1F, 0x20, 0x21};
     uint32_t press_adc = 0;
 
-    bme_forced_mode();
     // Datasheet[41]
     // https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bme688-ds000.pdf#page=41
 
@@ -460,34 +484,7 @@ void bme_pressure_pascal(int t_fine) {
     bme_i2c_read(I2C_NUM_0, &forced_press_addr[2], &tmp, 1);
     press_adc = press_adc | (tmp & 0xf0) >> 4;
 
-    uint32_t press = bme_compensate_pressure(press_adc, t_fine);
-    printf("Presion: %f\n", (float)press / 100);
-}
-
-void bme_read_data(void) {
-    // Datasheet[23:41]
-    // https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bme688-ds000.pdf#page=23
-
-    uint8_t tmp;
-
-    // Se obtienen los datos de temperatura
-    uint8_t forced_temp_addr[] = {0x22, 0x23, 0x24};
-    for (;;) {
-        uint32_t temp_adc = 0;
-        bme_forced_mode();
-        // Datasheet[41]
-        // https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bme688-ds000.pdf#page=41
-
-        bme_i2c_read(I2C_NUM_0, &forced_temp_addr[0], &tmp, 1);
-        temp_adc = temp_adc | tmp << 12;
-        bme_i2c_read(I2C_NUM_0, &forced_temp_addr[1], &tmp, 1);
-        temp_adc = temp_adc | tmp << 4;
-        bme_i2c_read(I2C_NUM_0, &forced_temp_addr[2], &tmp, 1);
-        temp_adc = temp_adc | (tmp & 0xf0) >> 4;
-
-        uint32_t temp = bme_temp_celsius(temp_adc);
-        printf("Temperatura: %f\n", (float)temp / 100);
-    }
+    return press_adc;
 }
 
 // Function for sending things to UART1
@@ -541,13 +538,43 @@ int serial_read(char *buffer, int size){
     return len;
 }
 
-float calculate_rms(float array[], int len) {
+float calc_rms(float array[], int len) {
     float sum = 0;
     for(int i = 0; i < len; i++) {
         float a_sqr = pow(array[i], 2);
         sum += a_sqr;
     }
     return sqrt(sum/len);
+}
+
+void bme_read_window(int window) {
+    float temp_array[window];
+    float press_array[window];
+    for (int i = 0; i < window; i++) {
+        uint32_t temp_adc = 0;
+        uint32_t press_adc = 0;
+        TempInfo temp_info;
+
+        bme_forced_mode();
+        temp_adc = bme_temp_adc();
+        temp_info = bme_temp_comp(temp_adc);
+        float temp = (float)temp_info.temp / 100;
+        float t_fine = temp_info.t_fine;
+        press_adc = bme_press_adc();
+        float press = (float)bme_press_comp(press_adc, t_fine);
+
+        temp_array[i] = temp;
+        press_array[i] = press;
+        printf("Temperatura: %f\n", temp);
+        printf("Presion: %f\n", press);
+    }
+    float temp_rms;
+    float press_rms;
+
+    temp_rms = calc_rms(temp_array, window);
+    press_rms = calc_rms(press_array, window);
+    printf("Temperatura RMS: %f\n", temp_rms);
+    printf("Presion RMS: %f\n", press_rms);
 }
 
 void app_main(void) {
@@ -558,7 +585,9 @@ void app_main(void) {
     bme_get_mode();
     bme_forced_mode();
     printf("Comienza lectura\n\n");
-    bme_read_data();
     // setup uart
     uart_setup();
+
+    bme_read_window(10);
+    vTaskDelay(pdMS_TO_TICKS(1000));
 }
