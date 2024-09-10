@@ -33,6 +33,8 @@
 #define ACK_VAL 0x0
 #define NACK_VAL 0x1
 
+#define REDIRECT_LOGS 1 // if redirect ESP log to another UART
+
 esp_err_t ret = ESP_OK;
 esp_err_t ret2 = ESP_OK;
 
@@ -350,6 +352,118 @@ void bme_get_mode(void) {
     printf("Valor de BME MODE: %2X \n\n", tmp);
 }
 
+int bme_compensate_pressure(uint32_t press_adc, int t_fine) {
+    // Datasheet[24]
+    // https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bme688-ds000.pdf#page=24
+
+    // Se obtienen los parametros de calibracion
+    uint8_t addr_par_p1_lsb = 0x8E, addr_par_p1_msb = 0x8F;
+    uint8_t addr_par_p2_lsb = 0x90, addr_par_p2_msb = 0x91;
+    uint8_t addr_par_p3_lsb = 0x92;
+    uint8_t addr_par_p4_lsb = 0x94, addr_par_p4_msb = 0x95;
+    uint8_t addr_par_p5_lsb = 0x96, addr_par_p5_msb = 0x97;
+    uint8_t addr_par_p6_lsb = 0x99;
+    uint8_t addr_par_p7_lsb = 0x98;
+    uint8_t addr_par_p8_lsb = 0x9C, addr_par_p8_msb = 0x9D;
+    uint8_t addr_par_p9_lsb = 0x9E, addr_par_p9_msb = 0x9F;
+    uint8_t addr_par_p10_lsb = 0xA0;
+
+    uint16_t par_p1;
+    uint16_t par_p2;
+    uint8_t par_p3;
+    uint16_t par_p4;
+    uint16_t par_p5;
+    uint8_t par_p6;
+    uint8_t par_p7;
+    uint16_t par_p8;
+    uint16_t par_p9;
+    uint8_t par_p10;
+
+    uint8_t par_p1_lsb, par_p1_msb;
+    uint8_t par_p2_lsb, par_p2_msb;
+    uint8_t par_p4_lsb, par_p4_msb;
+    uint8_t par_p5_lsb, par_p5_msb;
+    uint8_t par_p8_lsb, par_p8_msb;
+    uint8_t par_p9_lsb, par_p9_msb;
+
+    bme_i2c_read(I2C_NUM_0, &addr_par_p1_lsb, &par_p1_lsb, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_p1_msb, &par_p1_msb, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_p2_lsb, &par_p2_lsb, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_p2_msb, &par_p2_msb, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_p3_lsb, &par_p3, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_p4_lsb, &par_p4_lsb, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_p4_msb, &par_p4_msb, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_p5_lsb, &par_p5_lsb, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_p5_msb, &par_p5_msb, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_p6_lsb, &par_p6, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_p7_lsb, &par_p7, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_p8_lsb, &par_p8_lsb, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_p8_msb, &par_p8_msb, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_p9_lsb, &par_p9_lsb, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_p9_msb, &par_p9_msb, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_p10_lsb, &par_p10, 1);
+
+    par_p1 = (par_p1_msb << 8) | par_p1_lsb;
+    par_p2 = (par_p2_msb << 8) | par_p2_lsb;
+    par_p4 = (par_p4_msb << 8) | par_p4_lsb;
+    par_p5 = (par_p5_msb << 8) | par_p5_lsb;
+    par_p8 = (par_p8_msb << 8) | par_p8_lsb;
+    par_p9 = (par_p9_msb << 8) | par_p9_lsb;
+
+
+    int64_t var1;
+    int64_t var2;
+    int64_t var3;
+    int press_comp;
+
+    var1 = ((int32_t)t_fine >> 1) - 64000;
+    var2 = ((((var1 >> 2) * (var1 >> 2)) >> 11) * (int32_t)par_p6) >> 2;
+    var2 = var2 + ((var1 * (int32_t)par_p5) << 1);
+    var2 = (var2 >> 2) + ((int32_t)par_p4 << 16);
+    var1 = (((((var1 >> 2) * (var1 >> 2)) >> 13) *
+        ((int32_t)par_p3 << 5)) >> 3) + (((int32_t)par_p2 * var1) >> 1);
+    var1 = var1 >> 18;
+    var1 = ((32768 + var1) * (int32_t)par_p1) >> 15;
+    press_comp = 1048576 - press_adc;
+    press_comp = (uint32_t)((press_comp - (var2 >> 12)) * ((uint32_t)3125));
+    if (press_comp >= (1 << 30)) {
+        press_comp = ((press_comp / (uint32_t)var1) << 1);
+    }
+    else {
+        press_comp = ((press_comp << 1) / (uint32_t)var1);
+    }
+    var1 = ((int32_t)par_p9 * (int32_t)(((press_comp >> 3) *
+        (press_comp >> 3)) >> 13)) >> 12;
+    var2 = ((int32_t)(press_comp >> 2) * (int32_t)par_p8) >> 13;
+    var3 = ((int32_t)(press_comp >> 8) * (int32_t)(press_comp >> 8) *
+        (int32_t)(press_comp >> 8) * (int32_t)par_p10) >> 17;
+    press_comp = (int32_t)(press_comp) +
+        ((var1 + var2 + var3 + ((int32_t)par_p7 << 7)) >> 4);
+    
+    return press_comp;
+}
+
+void bme_pressure_pascal(int t_fine) {
+    uint8_t tmp;
+
+    uint8_t forced_press_addr[] = {0x1F, 0x20, 0x21};
+    uint32_t press_adc = 0;
+
+    bme_forced_mode();
+    // Datasheet[41]
+    // https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bme688-ds000.pdf#page=41
+
+    bme_i2c_read(I2C_NUM_0, &forced_press_addr[0], &tmp, 1);
+    press_adc = press_adc | tmp << 12;
+    bme_i2c_read(I2C_NUM_0, &forced_press_addr[1], &tmp, 1);
+    press_adc = press_adc | tmp << 4;
+    bme_i2c_read(I2C_NUM_0, &forced_press_addr[2], &tmp, 1);
+    press_adc = press_adc | (tmp & 0xf0) >> 4;
+
+    uint32_t press = bme_compensate_pressure(press_adc, t_fine);
+    printf("Presion: %f\n", (float)press / 100);
+}
+
 void bme_read_data(void) {
     // Datasheet[23:41]
     // https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bme688-ds000.pdf#page=23
@@ -376,7 +490,68 @@ void bme_read_data(void) {
     }
 }
 
+// Function for sending things to UART1
+static int uart1_printf(const char *str, va_list ap) {
+    char *buf;
+    vasprintf(&buf, str, ap);
+    uart_write_bytes(UART_NUM_1, buf, strlen(buf));
+    free(buf);
+    return 0;
+}
+
+// Setup of UART connections 0 and 1, and try to redirect logs to UART1 if asked
+static void uart_setup() {
+    uart_config_t uart_config = {
+        .baud_rate = 115200,
+        .data_bits = UART_DATA_8_BITS,
+        .parity = UART_PARITY_DISABLE,
+        .stop_bits = UART_STOP_BITS_1,
+        .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
+    };
+
+    uart_param_config(UART_NUM_0, &uart_config);
+    uart_param_config(UART_NUM_1, &uart_config);
+    uart_driver_install(UART_NUM_0, BUF_SIZE * 2, 0, 0, NULL, 0);
+    uart_driver_install(UART_NUM_1, BUF_SIZE * 2, 0, 0, NULL, 0);
+
+    // Redirect ESP log to UART1
+    if (REDIRECT_LOGS) {
+        esp_log_set_vprintf(uart1_printf);
+    }
+}
+
+// Write message through UART_num with an \0 at the end
+// int serial_write(const char *msg, int len){
+
+//     char *send_with_end = (char *)malloc(sizeof(char) * (len + 1));
+//     memcpy(send_with_end, msg, len);
+//     send_with_end[len] = '\0';
+
+//     int result = uart_write_bytes(UART_NUM, send_with_end, len+1);
+
+//     free(send_with_end);
+
+//     vTaskDelay(pdMS_TO_TICKS(1000));  // Delay for 1 second
+//     return result;
+// }
+
+// Read UART_num for input with timeout of 1 sec
+int serial_read(char *buffer, int size){
+    int len = uart_read_bytes(UART_NUM, (uint8_t*)buffer, size, pdMS_TO_TICKS(1000));
+    return len;
+}
+
+float calculate_rms(float array[], int len) {
+    float sum = 0;
+    for(int i = 0; i < len; i++) {
+        float a_sqr = pow(array[i], 2);
+        sum += a_sqr;
+    }
+    return sqrt(sum/len);
+}
+
 void app_main(void) {
+    // init bme688
     ESP_ERROR_CHECK(sensor_init());
     bme_get_chipid();
     bme_softreset();
@@ -384,4 +559,6 @@ void app_main(void) {
     bme_forced_mode();
     printf("Comienza lectura\n\n");
     bme_read_data();
+    // setup uart
+    uart_setup();
 }
