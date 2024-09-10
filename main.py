@@ -1,4 +1,5 @@
 import sys
+import receiver
 
 from PyQt6.QtCore import QSize
 from PyQt6.QtGui import (QIcon,
@@ -33,7 +34,7 @@ class Window(QWidget):
         # Button that closes connection
         self.closeBtn = QPushButton(text="Cerrar conexión", parent=self)
         self.closeBtn.setFixedSize(200, 120)
-        self.closeBtn.clicked.connect(self.close)
+        self.closeBtn.clicked.connect(self.end)
 
         # Create layout of type VBox
         layout = QVBoxLayout()
@@ -45,14 +46,16 @@ class Window(QWidget):
         self.setLayout(layout)
 
     def request(self):
-        return
+        data_list = receiver.recieve_window_data(DATA_WINDOW_SIZE)
+        # Graficar los datos
     
-    def close(self):
-        return
+    def end(self):
+        receiver.restart_ESP()
+        self.close()
     
     def update_window_size(self):
         DATA_WINDOW_SIZE = self.windowLine.text()
-        
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
