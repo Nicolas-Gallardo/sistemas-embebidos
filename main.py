@@ -19,26 +19,40 @@ DATA_WINDOW_SIZE = 10
 class Window(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
-        # Set window size input line
-        int_line_edit = QLineEdit(text = str(DATA_WINDOW_SIZE), parent=self)
-        int_line_edit.setValidator(QIntValidator())
+
+        # Input line that sets window size
+        self.windowLine = QLineEdit(text = str(DATA_WINDOW_SIZE), parent=self)
+        self.windowLine.setValidator(QIntValidator())
+        self.windowLine.textEdited.connect(self.update_window_size)
+        
         # Button that requests the data
-        requestBtn = QPushButton(text="Solicitar ventana de datos", parent=self)
-        requestBtn.setFixedSize(200, 120)
+        self.requestBtn = QPushButton(text="Solicitar ventana de datos", parent=self)
+        self.requestBtn.setFixedSize(200, 120)
+        self.requestBtn.clicked.connect(self.request)
+        
         # Button that closes connection
-        closeBtn = QPushButton(text="Cerrar conexión", parent=self)
-        closeBtn.setFixedSize(200, 120)
-        requestBtn.clicked.connect(self.request)
-        closeBtn.clicked.connect(self.close)
+        self.closeBtn = QPushButton(text="Cerrar conexión", parent=self)
+        self.closeBtn.setFixedSize(200, 120)
+        self.closeBtn.clicked.connect(self.close)
+
+        # Create layout of type VBox
         layout = QVBoxLayout()
-        layout.addWidget(int_line_edit)
-        layout.addWidget(requestBtn)
-        layout.addWidget(closeBtn)
+        # Add widgets
+        layout.addWidget(self.windowLine)
+        layout.addWidget(self.requestBtn)
+        layout.addWidget(self.closeBtn)
+        #Set layout
         self.setLayout(layout)
-    def request():
+
+    def request(self):
         return
-    def close():
+    
+    def close(self):
         return
+    
+    def update_window_size(self):
+        DATA_WINDOW_SIZE = self.windowLine.text()
+        
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
