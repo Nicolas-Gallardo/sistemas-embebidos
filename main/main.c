@@ -517,21 +517,6 @@ static void uart_setup() {
     }
 }
 
-// Write message through UART_num with an \0 at the end
-// int serial_write(const char *msg, int len){
-
-//     char *send_with_end = (char *)malloc(sizeof(char) * (len + 1));
-//     memcpy(send_with_end, msg, len);
-//     send_with_end[len] = '\0';
-
-//     int result = uart_write_bytes(UART_NUM, send_with_end, len+1);
-
-//     free(send_with_end);
-
-//     vTaskDelay(pdMS_TO_TICKS(1000));  // Delay for 1 second
-//     return result;
-// }
-
 // Read UART_num for input with timeout of 1 sec
 int serial_read(char *buffer, int size){
     int len = uart_read_bytes(UART_NUM, (uint8_t*)buffer, size, pdMS_TO_TICKS(1000));
@@ -547,9 +532,22 @@ float calc_rms(float array[], int len) {
     return sqrt(sum/len);
 }
 
+float *get_n_max(float array[], int len) {
+    float *max_elem = malloc(sizeof(float)*len);
+    if(!max_elem) {
+        return NULL;
+    }
+    // TODO
+    return max_elem;
+}
+
 void bme_read_window(int window) {
     float temp_array[window];
     float press_array[window];
+    int dataLen = sizeof(float)*2;
+    const char* dataToSend;
+    // RAW DATA WINDOW
+    uart_write_bytes(UART_NUM,"RAW\0",4);
     for (int i = 0; i < window; i++) {
         uint32_t temp_adc = 0;
         uint32_t press_adc = 0;
@@ -565,16 +563,65 @@ void bme_read_window(int window) {
 
         temp_array[i] = temp;
         press_array[i] = press;
-        printf("Temperatura: %f\n", temp);
-        printf("Presion: %f\n", press);
+
+        // Send data 
+        float data[2] = {temp, press};
+        dataToSend = (const char*)data;
+        uart_write_bytes(UART_NUM, dataToSend, dataLen);
+        
     }
+    uart_write_bytes(UART_NUM,"END\0",4);
+
+    // N-MAX VALUES
+    uart_write_bytes(UART_NUM,"MAX\0",4);
+    int n_max = 5;
+    int maxLen = sizeof(float)*n_max;
+
+    float *temp_max = get_n_max(temp_array, n_max);
+    float *press_max = get_n_max(press_array, n_max);
+
+    // Send data
+    dataToSend = (const char*)temp_max;
+    uart_write_bytes(UART_NUM, dataToSend, maxLen);
+    dataToSend = (const char*)press_max;
+    uart_write_bytes(UART_NUM, dataToSend, maxLen);
+
+    free(temp_max);
+    free(press_max);
+
+    // RMS
+    uart_write_bytes(UART_NUM,"RMS\0",4);
     float temp_rms;
     float press_rms;
 
     temp_rms = calc_rms(temp_array, window);
     press_rms = calc_rms(press_array, window);
-    printf("Temperatura RMS: %f\n", temp_rms);
-    printf("Presion RMS: %f\n", press_rms);
+
+    // Send data
+    float rms_data[2] = {temp_rms, press_rms};
+    dataToSend = (const char*)rms_data;
+    uart_write_bytes(UART_NUM, dataToSend, dataLen);
+    uart_write_bytes(UART_NUM,"END\0",4);
+}
+
+void change_window_size(void) {
+    // TODO
+    return;
+}
+
+int wait_conn(void) {
+    char request[6];
+    printf("Waiting Data...\n");
+    while(1) {
+        int rLen = serial_read(request, 6);
+        if (rLen > 0) {
+            if (strcmp(request, "BEGIN") == 0) {
+                uart_write_bytes(UART_NUM,"OK\0",3);
+                return 1;
+            }
+        }
+    }
+    printf("Connected\n");
 }
 
 void app_main(void) {
@@ -584,10 +631,32 @@ void app_main(void) {
     bme_softreset();
     bme_get_mode();
     bme_forced_mode();
-    printf("Comienza lectura\n\n");
     // setup uart
     uart_setup();
+    // wait uart conn
+    wait_conn();
 
-    bme_read_window(10);
-    vTaskDelay(pdMS_TO_TICKS(1000));
+    // start program
+    char request[8];
+    printf("Waiting Data...\n");
+    while(1) {
+        int rLen = serial_read(request, 8);
+        if (rLen > 0) {
+            if (strcmp(request, "GETDATA") == 0) {
+                uart_write_bytes(UART_NUM,"OK\0",3);
+                bme_read_window(10);
+                continue;
+            }
+            if (strcmp(request, "SETWIND") == 0) {
+                uart_write_bytes(UART_NUM,"OK\0",3);
+                change_window_size();
+                continue;
+            }
+            if (strcmp(request, "RESTART") == 0) {
+                uart_write_bytes(UART_NUM,"OK\0",3);
+                break;
+            }
+        }
+    }
+    printf("Restart\n");
 }
