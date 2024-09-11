@@ -47,6 +47,7 @@ class Window(QWidget):
 
     def request(self):
         data_list = receiver.recieve_window_data(DATA_WINDOW_SIZE)
+        print(data_list)
         # Graficar los datos
     
     def end(self):
@@ -55,6 +56,7 @@ class Window(QWidget):
     
     def update_window_size(self):
         DATA_WINDOW_SIZE = self.windowLine.text()
+        receiver.set_window_size(DATA_WINDOW_SIZE)
 
 
 if __name__ == "__main__":

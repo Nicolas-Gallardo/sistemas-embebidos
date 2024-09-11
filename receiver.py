@@ -49,6 +49,9 @@ def recieve_window_data(window):
     message = pack('6s','BEGIN\0'.encode())
     send_message(message)
 
+    message = pack('8s','GETDATA\0'.encode())
+    send_message(message)
+
     # Se lee data por la conexion serial
     counter = 0
     while True:
@@ -76,9 +79,60 @@ def restart_ESP():
     # Se abre la conexion serial
     start_conn()
 
-    # Se envia el mensaje de reinicio de comunicacion
+    # Se envia el mensaje de inicio de comunicacion
+    message = pack('6s','BEGIN\0'.encode())
+    send_message(message)
+
     message = pack('8s','RESTART\0'.encode())
     send_message(message)
 
+    # Se lee data por la conexion serial
+    counter = 0
+    while True:
+        if ser.in_waiting > 0:
+            try:
+                message = receive_data()
+            except:
+                print('Error en leer mensaje')
+                continue
+            else:
+                counter += 1
+                print(counter)
+            finally:
+                if counter == 1:
+                    print('Restarted!')
+                    break
+    
+    # Se envia el mensaje de termino de comunicacion
+    close_conn()
+
+def set_window_size(size):
+    # Se abre la conexion serial
+    start_conn()
+
+    # Se envia el mensaje de inicio de comunicacion
+    message = pack('6s','BEGIN\0'.encode())
+    send_message(message)
+
+    message = pack('8s','SETWIND\0'.encode())
+    send_message(message)
+
+    # Se lee data por la conexion serial
+    counter = 0
+    while True:
+        if ser.in_waiting > 0:
+            try:
+                message = receive_data()
+            except:
+                print('Error en leer mensaje')
+                continue
+            else:
+                counter += 1
+                print(counter)
+            finally:
+                if counter == 1:
+                    print('Window Updated!')
+                    break
+    
     # Se envia el mensaje de termino de comunicacion
     close_conn()
