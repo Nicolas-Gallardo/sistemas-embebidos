@@ -18,7 +18,7 @@ class MainWindow(pw.QMainWindow):
         self.setGeometry(self.left, self.top, self.width, self.height)
 
         # Input line that takes a value for window size
-        windowLine = pw.QLineEdit('0', self)
+        windowLine = pw.QLineEdit(str(DATA_WINDOW_SIZE), self)
         windowLine.setValidator(QIntValidator())
 
         # Button that sets window size
@@ -26,8 +26,7 @@ class MainWindow(pw.QMainWindow):
         windowBtn.clicked.connect(lambda: self.update_window_size(int(windowLine.text())))
 
         # Current Window size
-        self.windowLabel = pw.QLabel()
-        self.windowLabel.setText('Tamaño de ventana de datos es ' + str(DATA_WINDOW_SIZE))
+        self.windowLabel = pw.QLabel('Tamaño de ventana de datos es ' + str(DATA_WINDOW_SIZE))
 
         # Button that requests the data
         requestBtn = pw.QPushButton('Solicitar datos', self)
@@ -42,10 +41,8 @@ class MainWindow(pw.QMainWindow):
         plotGraph.plot(TEMP, PRESS)
 
         # Metrics
-        self.tempRMS = pw.QLabel()
-        self.tempRMS.setText('RMS de temperatura ' + str(TEMP_RMS))
-        self.pressRMS = pw.QLabel()
-        self.pressRMS.setText('RMS de presión ' + str(PRESS_RMS))
+        self.tempRMS = pw.QLabel('RMS de temperatura ' + str(TEMP_RMS))
+        self.pressRMS = pw.QLabel('RMS de presión ' + str(PRESS_RMS))
 
         # Create layouts
         mainLayout = pw.QVBoxLayout()
@@ -56,11 +53,11 @@ class MainWindow(pw.QMainWindow):
         # Add widgets
         btnLayout.addWidget(windowLine, 0, 0)
         btnLayout.addWidget(windowBtn, 0, 1)
-        btnLayout.addWidget(self.windowLabel, 1, 0, 2, 0)
-        btnLayout.addWidget(requestBtn, 2, 0, 2, 0)
-        btnLayout.addWidget(closeBtn, 3, 0, 2, 0)
-        graphLayout.addWidget(plotGraph, 0, 0)
-        graphLayout.addWidget(self.tempRMS, 1, 0, 2, 0)
+        btnLayout.addWidget(self.windowLabel, 1, 0, 1, 2)
+        btnLayout.addWidget(requestBtn, 2, 0, 1, 2)
+        btnLayout.addWidget(closeBtn, 3, 0, 1, 2)
+        graphLayout.addWidget(plotGraph, 0, 0, 1, 2)
+        graphLayout.addWidget(self.tempRMS, 1, 0)
         graphLayout.addWidget(self.pressRMS, 1, 1)
 
         mainLayout.addLayout(btnLayout)
