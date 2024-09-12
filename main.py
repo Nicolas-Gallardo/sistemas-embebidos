@@ -12,8 +12,8 @@ class MainWindow(pw.QMainWindow):
         self.title = 'Visualizador información de BME'
         self.left = 50
         self.top = 50
-        self.width = 320
-        self.height = 200
+        self.width = 600
+        self.height = 450
         self.setWindowTitle(self.title)
         self.setGeometry(self.left, self.top, self.width, self.height)
 
@@ -37,8 +37,16 @@ class MainWindow(pw.QMainWindow):
         closeBtn.clicked.connect(self.end)
 
         # Graphs
-        plotGraph = pg.PlotWidget()
-        plotGraph.plot(TEMP, PRESS)
+        plotTemp = pg.PlotWidget()
+        plotTemp.plot(TEMP)
+        plotTemp.setTitle("Temperatura vs Tiempo")
+        plotTemp.setLabel("left", "Temperatura (°C)")
+        plotTemp.setLabel("bottom", "Tiempo (s)")
+        plotPress = pg.PlotWidget()
+        plotPress.plot(PRESS)
+        plotPress.setTitle("Presión vs Tiempo")
+        plotPress.setLabel("left", "Presión (hPa)")
+        plotPress.setLabel("bottom", "Tiempo (s)")
 
         # Metrics
         self.tempRMS = pw.QLabel('RMS de temperatura ' + str(TEMP_RMS))
@@ -56,7 +64,8 @@ class MainWindow(pw.QMainWindow):
         btnLayout.addWidget(self.windowLabel, 1, 0, 1, 2)
         btnLayout.addWidget(requestBtn, 2, 0, 1, 2)
         btnLayout.addWidget(closeBtn, 3, 0, 1, 2)
-        graphLayout.addWidget(plotGraph, 0, 0, 1, 2)
+        graphLayout.addWidget(plotTemp, 0, 0)
+        graphLayout.addWidget(plotPress, 0, 1)
         graphLayout.addWidget(self.tempRMS, 1, 0)
         graphLayout.addWidget(self.pressRMS, 1, 1)
 
@@ -89,9 +98,9 @@ class MainWindow(pw.QMainWindow):
         print("Update")
 
 DATA_WINDOW_SIZE = 10
-PRESS = [0]
+PRESS = [0, 10 , 20]
 PRESS_RMS = 0
-TEMP = [0]
+TEMP = [0, 15, 55]
 TEMP_RMS = 0
 
 if __name__ == '__main__':
