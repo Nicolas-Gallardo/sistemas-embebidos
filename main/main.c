@@ -12,6 +12,8 @@
 #include "freertos/task.h"
 #include "math.h"
 #include "sdkconfig.h"
+#include "nvs_flash.h"
+#include "nvs.h"
 
 #define CONCAT_BYTES(msb, lsb) (((uint16_t)msb << 8) | (uint16_t)lsb)
 
@@ -559,7 +561,7 @@ void bme_read_window(int window) {
         float temp = (float)temp_info.temp / 100;
         float t_fine = temp_info.t_fine;
         press_adc = bme_press_adc();
-        float press = (float)bme_press_comp(press_adc, t_fine);
+        float press = (float)bme_press_comp(press_adc, t_fine) / 1000;
 
         temp_array[i] = temp;
         press_array[i] = press;
@@ -572,6 +574,7 @@ void bme_read_window(int window) {
     }
     uart_write_bytes(UART_NUM,"END\0",4);
 
+    # if 0
     // N-MAX VALUES
     uart_write_bytes(UART_NUM,"MAX\0",4);
     int n_max = 5;
@@ -588,6 +591,7 @@ void bme_read_window(int window) {
 
     free(temp_max);
     free(press_max);
+    # endif
 
     // RMS
     uart_write_bytes(UART_NUM,"RMS\0",4);
@@ -599,14 +603,14 @@ void bme_read_window(int window) {
 
     // Send data
     float rms_data[2] = {temp_rms, press_rms};
+
+    printf("temp_rms: %.2f, press_rms: %.2f\n", rms_data[0], rms_data[1]);
+
     dataToSend = (const char*)rms_data;
     uart_write_bytes(UART_NUM, dataToSend, dataLen);
-    uart_write_bytes(UART_NUM,"END\0",4);
-}
 
-void change_window_size(void) {
-    // TODO
-    return;
+    char* confirm = "FINISH";
+    uart_write_bytes(UART_NUM, confirm, strlen(confirm));
 }
 
 int wait_conn(void) {
@@ -624,6 +628,69 @@ int wait_conn(void) {
     printf("Connected\n");
 }
 
+esp_err_t nvs_init(void) {
+    // Initialize NVS
+    esp_err_t err = nvs_flash_init();
+    if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        // NVS partition was truncated and needs to be erased
+        // Retry nvs_flash_init
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        err = nvs_flash_init();
+    }
+    return err;
+}
+
+int32_t nvs_read_window_size() {
+    // Initialize NVS
+    printf("Opening Non-Volatile Storage (NVS) handle... ");
+    nvs_handle_t nvs_handle;
+    esp_err_t err = nvs_open("storage", NVS_READWRITE, &nvs_handle);
+    int32_t window_size = -1;
+    if (err != ESP_OK) {
+        printf("Error (%s) opening NVS handle!\n", esp_err_to_name(err));
+        return window_size;
+    } else {
+        printf("Done\n");
+
+        // Read
+        printf("Reading restart counter from NVS ... ");
+        window_size = 10; // value will default to 10, if not set yet in NVS
+        err = nvs_get_i32(nvs_handle, "window_size", &window_size);
+        switch (err) {
+            case ESP_OK:
+                printf("Done\n");
+                printf("Window size = %" PRIu32 "\n", window_size);
+                break;
+            case ESP_ERR_NVS_NOT_FOUND:
+                printf("The value is not initialized yet!\n");
+                break;
+            default :
+                printf("Error (%s) reading!\n", esp_err_to_name(err));
+        }
+    }
+    // Close
+    nvs_close(nvs_handle);
+    return window_size;
+}
+
+void nvs_set_window_size(int32_t window_size) {
+    // Write
+    nvs_handle_t nvs_handle;
+    esp_err_t err = nvs_open("storage", NVS_READWRITE, &nvs_handle);
+    err = nvs_set_i32(nvs_handle, "window_size", window_size);
+    printf((err != ESP_OK) ? "Failed!\n" : "Done\n");
+
+    // Commit written value.
+    // After setting any values, nvs_commit() must be called to ensure changes are written
+    // to flash storage. Implementations may write to storage at other times,
+    // but this is not guaranteed.
+    printf("Committing updates in NVS ... ");
+    err = nvs_commit(nvs_handle);
+    printf((err != ESP_OK) ? "Failed!\n" : "Done\n");
+    // Close
+    nvs_close(nvs_handle);
+}
+
 void app_main(void) {
     // init bme688
     ESP_ERROR_CHECK(sensor_init());
@@ -631,32 +698,50 @@ void app_main(void) {
     bme_softreset();
     bme_get_mode();
     bme_forced_mode();
+    //
+    nvs_init();
     // setup uart
     uart_setup();
-    // wait uart conn
-    wait_conn();
 
+    int window_size = nvs_read_window_size();
+
+    wait_conn();
     // start program
     char request[8];
     printf("Waiting Data...\n");
     while(1) {
         int rLen = serial_read(request, 8);
         if (rLen > 0) {
+            printf("REQ : %s\n", request);
             if (strcmp(request, "GETDATA") == 0) {
+                printf("<app_main:GETDATA> window_size = %d\n", window_size);
                 uart_write_bytes(UART_NUM,"OK\0",3);
-                bme_read_window(10);
-                continue;
+                bme_read_window(window_size);
             }
-            if (strcmp(request, "SETWIND") == 0) {
-                uart_write_bytes(UART_NUM,"OK\0",3);
-                change_window_size();
-                continue;
+            else if (strcmp(request, "SETWIND") == 0) {
+                char size_req_msg[128];
+                while(1) {
+                    int rLen = serial_read(size_req_msg, 128);
+                    if (rLen > 0) break;
+                }
+                printf("<stwind> size_req_msg = [%s]\n", size_req_msg);
+                int32_t size_req = atoi(size_req_msg);
+                printf("<stwind> size_req = [%ld]\n", size_req);
+                nvs_set_window_size(size_req);
+                int tmp2021 = nvs_read_window_size();
+                printf("<stwind> tmp2021 = [%d]\n", tmp2021);
+                window_size = size_req;
+                char* confirm = "SUNLIGHT";
+                uart_write_bytes(UART_NUM, confirm, strlen(confirm));
             }
-            if (strcmp(request, "RESTART") == 0) {
+            else if (strcmp(request, "RESTART") == 0) {
+                printf("Restart\n");
                 uart_write_bytes(UART_NUM,"OK\0",3);
                 break;
             }
         }
+    vTaskDelay(pdMS_TO_TICKS(1000));
     }
-    printf("Restart\n");
+    printf("Restarting\n");
+    esp_restart();
 }
