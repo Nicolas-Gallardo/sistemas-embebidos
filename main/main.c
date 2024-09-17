@@ -528,10 +528,10 @@ int serial_read(char *buffer, int size){
 float calc_rms(float array[], int len) {
     float sum = 0;
     for(int i = 0; i < len; i++) {
-        float a_sqr = pow(array[i], 2);
+        float a_sqr = powf(array[i], 2);
         sum += a_sqr;
     }
-    return sqrt(sum/len);
+    return sqrtf(sum/len);
 }
 
 float *get_n_max(float array[], int len) {
@@ -549,7 +549,7 @@ void bme_read_window(int window) {
     int dataLen = sizeof(float)*2;
     const char* dataToSend;
     // RAW DATA WINDOW
-    uart_write_bytes(UART_NUM,"RAW\0",4);
+    uart_write_bytes(UART_NUM,"RAW\n",4);
     for (int i = 0; i < window; i++) {
         uint32_t temp_adc = 0;
         uint32_t press_adc = 0;
@@ -570,9 +570,9 @@ void bme_read_window(int window) {
         float data[2] = {temp, press};
         dataToSend = (const char*)data;
         uart_write_bytes(UART_NUM, dataToSend, dataLen);
-        
+        vTaskDelay(pdMS_TO_TICKS(1000));
     }
-    uart_write_bytes(UART_NUM,"END\0",4);
+    uart_write_bytes(UART_NUM,"END\n",4);
 
     # if 0
     // N-MAX VALUES
@@ -594,7 +594,8 @@ void bme_read_window(int window) {
     # endif
 
     // RMS
-    uart_write_bytes(UART_NUM,"RMS\0",4);
+    uart_write_bytes(UART_NUM,"RMS\n",4);
+    vTaskDelay(pdMS_TO_TICKS(500));
     float temp_rms;
     float press_rms;
 
@@ -608,24 +609,26 @@ void bme_read_window(int window) {
 
     dataToSend = (const char*)rms_data;
     uart_write_bytes(UART_NUM, dataToSend, dataLen);
+    uart_write_bytes(UART_NUM, "\n", 1);
 
-    char* confirm = "FINISH";
+    char* confirm = "END\n";
     uart_write_bytes(UART_NUM, confirm, strlen(confirm));
 }
 
-int wait_conn(void) {
+void wait_conn(int32_t window_size) {
     char request[6];
-    printf("Waiting Data...\n");
+    printf("<wait_conn> waiting begin message\n");
     while(1) {
         int rLen = serial_read(request, 6);
         if (rLen > 0) {
-            if (strcmp(request, "BEGIN") == 0) {
-                uart_write_bytes(UART_NUM,"OK\0",3);
-                return 1;
-            }
+            if (strcmp(request, "BEGIN") == 0) break;
         }
     }
-    printf("Connected\n");
+    uart_write_bytes(UART_NUM,"OK\n",3);
+    printf("<wait_conn> connected, sending window_size\n");
+    const char* data = (const char*)window_size;
+    int data_size = sizeof(int32_t);
+    uart_write_bytes(UART_NUM, data, data_size); 
 }
 
 esp_err_t nvs_init(void) {
@@ -703,9 +706,9 @@ void app_main(void) {
     // setup uart
     uart_setup();
 
-    int window_size = nvs_read_window_size();
+    int32_t window_size = nvs_read_window_size();
 
-    wait_conn();
+    wait_conn(window_size);
     // start program
     char request[8];
     printf("Waiting Data...\n");
@@ -714,8 +717,8 @@ void app_main(void) {
         if (rLen > 0) {
             printf("REQ : %s\n", request);
             if (strcmp(request, "GETDATA") == 0) {
-                printf("<app_main:GETDATA> window_size = %d\n", window_size);
-                uart_write_bytes(UART_NUM,"OK\0",3);
+                printf("<app_main:GETDATA> window_size = %ld\n", window_size);
+                uart_write_bytes(UART_NUM,"OK\n",3);
                 bme_read_window(window_size);
             }
             else if (strcmp(request, "SETWIND") == 0) {
@@ -736,7 +739,7 @@ void app_main(void) {
             }
             else if (strcmp(request, "RESTART") == 0) {
                 printf("Restart\n");
-                uart_write_bytes(UART_NUM,"OK\0",3);
+                uart_write_bytes(UART_NUM,"OK\n",3);
                 break;
             }
         }

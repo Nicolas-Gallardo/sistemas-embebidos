@@ -42,19 +42,19 @@ class MainWindow(pw.QMainWindow):
         closeBtn.clicked.connect(self.end)
 
         # Grafico para temperatura
-        plotTemp = pg.PlotWidget()
-        plotTemp.plot(TEMP)
+        self.plotTemp = pg.PlotWidget()
+        self.plotTemp.plot(TEMP)
         # Leyenda del grafico
-        plotTemp.setTitle("Temperatura vs Tiempo")
-        plotTemp.setLabel("left", "Temperatura (°C)")
-        plotTemp.setLabel("bottom", "Tiempo (s)")
+        self.plotTemp.setTitle("Temperatura vs Tiempo")
+        self.plotTemp.setLabel("left", "Temperatura (°C)")
+        self.plotTemp.setLabel("bottom", "Tiempo (s)")
         # Grafico para presion
-        plotPress = pg.PlotWidget()
-        plotPress.plot(PRESS)
+        self.plotPress = pg.PlotWidget()
+        self.plotPress.plot(PRESS)
         # Leyenda del grafico
-        plotPress.setTitle("Presión vs Tiempo")
-        plotPress.setLabel("left", "Presión (hPa)")
-        plotPress.setLabel("bottom", "Tiempo (s)")
+        self.plotPress.setTitle("Presión vs Tiempo")
+        self.plotPress.setLabel("left", "Presión (hPa)")
+        self.plotPress.setLabel("bottom", "Tiempo (s)")
 
         # Metricas para RMS
         self.tempRMS = pw.QLabel('RMS de temperatura ' + str(TEMP_RMS))
@@ -72,8 +72,8 @@ class MainWindow(pw.QMainWindow):
         btnLayout.addWidget(self.windowLabel, 1, 0, 1, 2)
         btnLayout.addWidget(requestBtn, 2, 0, 1, 2)
         btnLayout.addWidget(closeBtn, 3, 0, 1, 2)
-        graphLayout.addWidget(plotTemp, 0, 0)
-        graphLayout.addWidget(plotPress, 0, 1)
+        graphLayout.addWidget(self.plotTemp, 0, 0)
+        graphLayout.addWidget(self.plotPress, 0, 1)
         graphLayout.addWidget(self.tempRMS, 1, 0)
         graphLayout.addWidget(self.pressRMS, 1, 1)
         
@@ -91,8 +91,18 @@ class MainWindow(pw.QMainWindow):
         # Añadir los datos a TEMP, PRESS, TEMP_RMS y PRESS_RMS
         print("Request")
         TEMP, PRESS, TEMP_RMS, PRESS_RMS = receiver.recieve_window_data()
-        
+        print(f"temp: {TEMP}")
+        print(f"press: {PRESS}")
+        print(f"temp_rms: {TEMP_RMS}")
+        print(f"press_rms: {PRESS_RMS}")
+        self.update_plot()
+                
     
+    @pyqtSlot()
+    def update_plot(self):
+        self.plotTemp.plot(TEMP, list(range(0,DATA_WINDOW_SIZE)))
+        self.plotPress.plot(PRESS, list(range(0,DATA_WINDOW_SIZE)))
+
     @pyqtSlot()
     def end(self):
         #Cerrar conexion, reiniciando ESP
@@ -117,7 +127,7 @@ TEMP = [0, 15, 55]
 TEMP_RMS = 0
 
 if __name__ == '__main__':
-    receiver.start_conn()
+    DATA_WINDOW_SIZE = receiver.start_conn()
     app = pw.QApplication(sys.argv)
     window = MainWindow()
     window.show()
