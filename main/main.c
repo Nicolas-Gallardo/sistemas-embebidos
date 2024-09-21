@@ -549,6 +549,7 @@ void bme_read_window(int window) {
     int dataLen = sizeof(float)*2;
     const char* dataToSend;
     // RAW DATA WINDOW
+    printf("<bme_read_window> start raw data reading and sending\n");
     uart_write_bytes(UART_NUM,"RAW\n",4);
     for (int i = 0; i < window; i++) {
         uint32_t temp_adc = 0;
@@ -572,6 +573,7 @@ void bme_read_window(int window) {
         uart_write_bytes(UART_NUM, dataToSend, dataLen);
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
+    printf("<bme_read_window> finish raw data\n");
     uart_write_bytes(UART_NUM,"END\n",4);
 
     # if 0
@@ -594,6 +596,7 @@ void bme_read_window(int window) {
     # endif
 
     // RMS
+    printf("<bme_read_window> start rms data sending\n");
     uart_write_bytes(UART_NUM,"RMS\n",4);
     vTaskDelay(pdMS_TO_TICKS(500));
     float temp_rms;
@@ -602,33 +605,16 @@ void bme_read_window(int window) {
     temp_rms = calc_rms(temp_array, window);
     press_rms = calc_rms(press_array, window);
 
+    printf("<bme_read_window> temp_rms: %.2f, press_rms: %.2f\n", temp_rms, press_rms);
     // Send data
     float rms_data[2] = {temp_rms, press_rms};
 
-    printf("temp_rms: %.2f, press_rms: %.2f\n", rms_data[0], rms_data[1]);
-
     dataToSend = (const char*)rms_data;
     uart_write_bytes(UART_NUM, dataToSend, dataLen);
-    uart_write_bytes(UART_NUM, "\n", 1);
 
     char* confirm = "END\n";
     uart_write_bytes(UART_NUM, confirm, strlen(confirm));
-}
-
-void wait_conn(int32_t window_size) {
-    char request[6];
-    printf("<wait_conn> waiting begin message\n");
-    while(1) {
-        int rLen = serial_read(request, 6);
-        if (rLen > 0) {
-            if (strcmp(request, "BEGIN") == 0) break;
-        }
-    }
-    uart_write_bytes(UART_NUM,"OK\n",3);
-    printf("<wait_conn> connected, sending window_size\n");
-    const char* data = (const char*)window_size;
-    int data_size = sizeof(int32_t);
-    uart_write_bytes(UART_NUM, data, data_size); 
+    printf("<bme_read_window> end reading window data");
 }
 
 esp_err_t nvs_init(void) {
@@ -643,55 +629,78 @@ esp_err_t nvs_init(void) {
     return err;
 }
 
-int32_t nvs_read_window_size() {
+int nvs_read_window_size() {
     // Initialize NVS
-    printf("Opening Non-Volatile Storage (NVS) handle... ");
+    printf("<nvs_read_window_size> Opening Non-Volatile Storage (NVS) handle...\n");
     nvs_handle_t nvs_handle;
     esp_err_t err = nvs_open("storage", NVS_READWRITE, &nvs_handle);
     int32_t window_size = -1;
     if (err != ESP_OK) {
-        printf("Error (%s) opening NVS handle!\n", esp_err_to_name(err));
+        printf("<nvs_read_window_size> Error (%s) opening NVS handle!\n", esp_err_to_name(err));
         return window_size;
     } else {
-        printf("Done\n");
+        printf("<nvs_read_window_size> Done\n");
 
         // Read
-        printf("Reading restart counter from NVS ... ");
+        printf("<nvs_read_window_size> Reading window size from NVS ...\n");
         window_size = 10; // value will default to 10, if not set yet in NVS
         err = nvs_get_i32(nvs_handle, "window_size", &window_size);
         switch (err) {
             case ESP_OK:
-                printf("Done\n");
-                printf("Window size = %" PRIu32 "\n", window_size);
+                printf("<nvs_read_window_size> Done\n");
+                printf("<nvs_read_window_size> Window size = %" PRIu32 "\n", window_size);
                 break;
             case ESP_ERR_NVS_NOT_FOUND:
-                printf("The value is not initialized yet!\n");
+                printf("<nvs_read_window_size> The value is not initialized yet!\n");
                 break;
             default :
-                printf("Error (%s) reading!\n", esp_err_to_name(err));
+                printf("<nvs_read_window_size> Error (%s) reading!\n", esp_err_to_name(err));
         }
     }
     // Close
     nvs_close(nvs_handle);
-    return window_size;
+    return (int)window_size;
 }
 
-void nvs_set_window_size(int32_t window_size) {
+void nvs_set_window_size(int window_size) {
     // Write
+    printf("<nvs_set_window_size> Opening Non-Volatile Storage (NVS) handle...\n");
     nvs_handle_t nvs_handle;
     esp_err_t err = nvs_open("storage", NVS_READWRITE, &nvs_handle);
-    err = nvs_set_i32(nvs_handle, "window_size", window_size);
-    printf((err != ESP_OK) ? "Failed!\n" : "Done\n");
+    if (err != ESP_OK) {
+        printf("<nvs_set_window_size> Error (%s) opening NVS handle!\n", esp_err_to_name(err));
+    } else {
+        printf("<nvs_set_window_size> Done\n");
+        printf("<nvs_set_window_size> Setting window size value\n");
+        err = nvs_set_i32(nvs_handle, "window_size", window_size);
+        printf((err != ESP_OK) ? "Failed!\n" : "Done\n");
 
-    // Commit written value.
-    // After setting any values, nvs_commit() must be called to ensure changes are written
-    // to flash storage. Implementations may write to storage at other times,
-    // but this is not guaranteed.
-    printf("Committing updates in NVS ... ");
-    err = nvs_commit(nvs_handle);
-    printf((err != ESP_OK) ? "Failed!\n" : "Done\n");
-    // Close
-    nvs_close(nvs_handle);
+        // Commit written value.
+        // After setting any values, nvs_commit() must be called to ensure changes are written
+        // to flash storage. Implementations may write to storage at other times,
+        // but this is not guaranteed.
+        printf("<nvsset_window_size> Committing updates in NVS ...\n");
+        err = nvs_commit(nvs_handle);
+        printf((err != ESP_OK) ? "Failed!\n" : "Done\n");
+        // Close
+        nvs_close(nvs_handle);
+    }
+}
+
+void wait_conn(int window_size) {
+    char request[6];
+    printf("<wait_conn> waiting begin message\n");
+    while(1) {
+        int rLen = serial_read(request, 6);
+        if (rLen > 0) {
+            if (strcmp(request, "BEGIN") == 0) break;
+        }
+    }
+    uart_write_bytes(UART_NUM,"OK\n",3);
+    printf("<wait_conn> connected, sending window_size\n");
+    int temp = window_size;
+    const char *dataToSend = (const char *)temp;
+    uart_write_bytes(UART_NUM, dataToSend, sizeof(int)); 
 }
 
 void app_main(void) {
@@ -706,18 +715,18 @@ void app_main(void) {
     // setup uart
     uart_setup();
 
-    int32_t window_size = nvs_read_window_size();
+    int window_size = nvs_read_window_size();
 
     wait_conn(window_size);
     // start program
     char request[8];
-    printf("Waiting Data...\n");
+    printf("<app_main> waiting request\n");
     while(1) {
         int rLen = serial_read(request, 8);
         if (rLen > 0) {
             printf("REQ : %s\n", request);
             if (strcmp(request, "GETDATA") == 0) {
-                printf("<app_main:GETDATA> window_size = %ld\n", window_size);
+                printf("<app_main:GETDATA> window_size = %d\n", window_size);
                 uart_write_bytes(UART_NUM,"OK\n",3);
                 bme_read_window(window_size);
             }
@@ -728,8 +737,8 @@ void app_main(void) {
                     if (rLen > 0) break;
                 }
                 printf("<stwind> size_req_msg = [%s]\n", size_req_msg);
-                int32_t size_req = atoi(size_req_msg);
-                printf("<stwind> size_req = [%ld]\n", size_req);
+                int size_req = atoi(size_req_msg);
+                printf("<stwind> size_req = [%d]\n", size_req);
                 nvs_set_window_size(size_req);
                 int tmp2021 = nvs_read_window_size();
                 printf("<stwind> tmp2021 = [%d]\n", tmp2021);

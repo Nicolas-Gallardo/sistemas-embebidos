@@ -57,11 +57,9 @@ def start_conn():
         if ser.in_waiting > 0:
             try:
                 response = receive_response()
-                window_size  = unpack("l", response)
+                window_size  = unpack("i", response)
                 return window_size
-            except:
-                print('<start_conn> Error en leer mensaje')
-                continue
+            except: continue
 
 #Funciones Principales
 def recieve_window_data():
