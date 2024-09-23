@@ -398,45 +398,58 @@ int bme_press_comp(uint32_t press_adc, int t_fine) {
 
     uint16_t par_p1;
     uint16_t par_p2;
-    uint8_t par_p3;
+    uint16_t par_p3;
     uint16_t par_p4;
     uint16_t par_p5;
-    uint8_t par_p6;
-    uint8_t par_p7;
+    uint16_t par_p6;
+    uint16_t par_p7;
     uint16_t par_p8;
     uint16_t par_p9;
-    uint8_t par_p10;
+    uint16_t par_p10;
 
     uint8_t par_p1_lsb, par_p1_msb;
     uint8_t par_p2_lsb, par_p2_msb;
+    uint8_t par_p3_lsb;
     uint8_t par_p4_lsb, par_p4_msb;
     uint8_t par_p5_lsb, par_p5_msb;
+    uint8_t par_p6_lsb;
+    uint8_t par_p7_lsb;
     uint8_t par_p8_lsb, par_p8_msb;
     uint8_t par_p9_lsb, par_p9_msb;
+    uint8_t par_p10_lsb;
 
     bme_i2c_read(I2C_NUM_0, &addr_par_p1_lsb, &par_p1_lsb, 1);
     bme_i2c_read(I2C_NUM_0, &addr_par_p1_msb, &par_p1_msb, 1);
     bme_i2c_read(I2C_NUM_0, &addr_par_p2_lsb, &par_p2_lsb, 1);
     bme_i2c_read(I2C_NUM_0, &addr_par_p2_msb, &par_p2_msb, 1);
-    bme_i2c_read(I2C_NUM_0, &addr_par_p3_lsb, &par_p3, 1);
+
+    bme_i2c_read(I2C_NUM_0, &addr_par_p3_lsb, &par_p3_lsb, 1);
+
     bme_i2c_read(I2C_NUM_0, &addr_par_p4_lsb, &par_p4_lsb, 1);
     bme_i2c_read(I2C_NUM_0, &addr_par_p4_msb, &par_p4_msb, 1);
     bme_i2c_read(I2C_NUM_0, &addr_par_p5_lsb, &par_p5_lsb, 1);
     bme_i2c_read(I2C_NUM_0, &addr_par_p5_msb, &par_p5_msb, 1);
-    bme_i2c_read(I2C_NUM_0, &addr_par_p6_lsb, &par_p6, 1);
-    bme_i2c_read(I2C_NUM_0, &addr_par_p7_lsb, &par_p7, 1);
+
+    bme_i2c_read(I2C_NUM_0, &addr_par_p6_lsb, &par_p6_lsb, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_p7_lsb, &par_p7_lsb, 1);
+
     bme_i2c_read(I2C_NUM_0, &addr_par_p8_lsb, &par_p8_lsb, 1);
     bme_i2c_read(I2C_NUM_0, &addr_par_p8_msb, &par_p8_msb, 1);
     bme_i2c_read(I2C_NUM_0, &addr_par_p9_lsb, &par_p9_lsb, 1);
     bme_i2c_read(I2C_NUM_0, &addr_par_p9_msb, &par_p9_msb, 1);
-    bme_i2c_read(I2C_NUM_0, &addr_par_p10_lsb, &par_p10, 1);
+
+    bme_i2c_read(I2C_NUM_0, &addr_par_p10_lsb, &par_p10_lsb, 1);
 
     par_p1 = (par_p1_msb << 8) | par_p1_lsb;
     par_p2 = (par_p2_msb << 8) | par_p2_lsb;
+    par_p3 = par_p3_lsb;
     par_p4 = (par_p4_msb << 8) | par_p4_lsb;
     par_p5 = (par_p5_msb << 8) | par_p5_lsb;
+    par_p6 = par_p6_lsb;
+    par_p7 = par_p7_lsb;
     par_p8 = (par_p8_msb << 8) | par_p8_lsb;
     par_p9 = (par_p9_msb << 8) | par_p9_lsb;
+    par_p10 = par_p10_lsb;
 
     int64_t var1;
     int64_t var2;
@@ -573,7 +586,7 @@ void bme_read_window(int window) {
         uart_write_bytes(UART_NUM, dataToSend, dataLen);
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
-    uart_write_bytes(UART_NUM,"END\n",4);
+    uart_write_bytes(UART_NUM,"END__RAW\n",8);
     printf("<bme_read_window> finish raw data\n");
 
     # if 0

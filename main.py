@@ -97,9 +97,11 @@ class MainWindow(pw.QMainWindow):
     
     @pyqtSlot()
     def update_plot(self):
-        time = range(0,data_window_size)
-        self.plotTemp.plot(temp, time)
-        self.plotPress.plot(press, time)
+        time = range(0, data_window_size)
+        self.plotTemp.clear()
+        self.plotPress.clear()
+        self.plotTemp.plot(time, temp)
+        self.plotPress.plot(time, press)
 
     @pyqtSlot()
     def end(self):
@@ -120,9 +122,9 @@ class MainWindow(pw.QMainWindow):
         
 #Variables globales
 data_window_size = 10
-press = [0, 10 , 20]
+press = []
 press_rms = 0
-temp = [0, 15, 55]
+temp = []
 temp_rms = 0
 
 if __name__ == '__main__':

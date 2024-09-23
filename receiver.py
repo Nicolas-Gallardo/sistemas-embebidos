@@ -139,6 +139,7 @@ def restart_ESP():
 
 def get_window_size():
     # Se envia la orden de recibir datos
+    
     message = pack('8s','GETWIND\0'.encode())
     send_message(message)
     if not wait_message("OK"): return
