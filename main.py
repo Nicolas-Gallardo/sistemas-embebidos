@@ -129,7 +129,15 @@ temp_rms = 0
 
 if __name__ == '__main__':
     receiver.start_conn()
-    data_window_size = receiver.get_window_size()
+    tries = 0;
+    while True:
+        if tries > 3:
+            break
+        temp_window_size = receiver.get_window_size()
+        if temp_window_size > 0:
+            data_window_size = temp_window_size
+            break
+        tries += 1
     app = pw.QApplication(sys.argv)
     window = MainWindow()
     window.show()

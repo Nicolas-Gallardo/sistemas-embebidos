@@ -573,7 +573,7 @@ void bme_read_window(int window) {
         temp_adc = bme_temp_adc();
         temp_info = bme_temp_comp(temp_adc);
         float temp = (float)temp_info.temp / 100;
-        float t_fine = temp_info.t_fine;
+        int t_fine = temp_info.t_fine;
         press_adc = bme_press_adc();
         float press = (float)bme_press_comp(press_adc, t_fine) / 100;
 
