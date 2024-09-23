@@ -90,14 +90,16 @@ class MainWindow(pw.QMainWindow):
     def request(self):
         # Añadir los datos a TEMP, PRESS, TEMP_RMS y PRESS_RMS
         print("Request")
+        global temp, press, temp_rms, press_rms
         temp, press, temp_rms, press_rms = receiver.recieve_window_data()
         self.update_plot()
                 
     
     @pyqtSlot()
     def update_plot(self):
-        self.plotTemp.plot(temp, range(0,data_window_size))
-        self.plotPress.plot(press, range(0,data_window_size))
+        time = range(0,data_window_size)
+        self.plotTemp.plot(temp, time)
+        self.plotPress.plot(press, time)
 
     @pyqtSlot()
     def end(self):
