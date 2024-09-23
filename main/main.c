@@ -700,7 +700,7 @@ void app_main(void) {
     uart_setup();
 
     int window_size = nvs_read_window_size();
-
+    printf("<app_main> window size = %d\n", window_size);
     // start program
     char request[8];
     printf("<app_main> waiting request\n");
@@ -715,13 +715,12 @@ void app_main(void) {
             }
             else if (strcmp(request, "GETWIND") == 0) {
                 uart_write_bytes(UART_NUM,"OK\n",3);
-                    printf("<wait_conn> window_size = [%d]\n", window_size);
-                    // [code][heap]----------[stack]
-                    // window_size : int == 0a 00 00 00 == 10
-                    // addr = &window_size : int* 
-                    // addr == bf 0e d2 ff bf 0e d2 ff
-                    const char *dataToSend = (const char *)&window_size;
-                    uart_write_bytes(UART_NUM, dataToSend, sizeof(int)); 
+                // [code][heap]----------[stack]
+                // window_size : int == 0a 00 00 00 == 10
+                // addr = &window_size : int* 
+                // addr == bf 0e d2 ff bf 0e d2 ff
+                const char *dataToSend = (const char *)&window_size;
+                uart_write_bytes(UART_NUM, dataToSend, sizeof(int)); 
             }
             else if (strcmp(request, "SETWIND") == 0) {
                 char size_req_msg[128];

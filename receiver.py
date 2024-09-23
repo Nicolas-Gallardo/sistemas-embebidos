@@ -56,7 +56,7 @@ def start_conn():
     else: False
 
 #Funciones Principales
-def recieve_window_data(window_size):
+def recieve_window_data():
     # Se envia la orden de recibir datos
     message = pack('8s','GETDATA\0'.encode())
     send_message(message)
@@ -67,17 +67,18 @@ def recieve_window_data(window_size):
     
     press, temp = [], []
     # Se reciben los datos en pares de floats
-    print("<recieve_window_data>")
+    print("<recieve_window_data> waiting data")
+    ser.flush()
     while True:
         if ser.in_waiting > 0:
             try:
-                response = ser.read_until(b'END',8)
+                response = ser.read_until(size = 8)
                 if b'END' in response:
                     print("<recieve_window_data> END received")
                     break
                 data = unpack("ff", response)
                 temp.append(data[0])
-                press.append(data[1])
+                press.append(data[1]) 
 
             except: continue
 
@@ -92,7 +93,7 @@ def recieve_window_data(window_size):
     while True:
         if ser.in_waiting > 0:
             try:
-                response = ser.read_until(b'END',8)
+                response = ser.read_until(size = 8)
                 if b'END' in response:
                     print("<recieve_window_data> END received")
                     break
@@ -139,13 +140,12 @@ def get_window_size():
     if not wait_message("OK"): return
 
     print("<get_window_size> waiting window size")
+    ser.flush()
     while True:
         if ser.in_waiting > 0:
             try:
-                response = ser.read_until(4)
-                window_size = unpack("i", response)
-                print(f"<get_window_size> window size = {window_size}")
-                return window_size
-            except:
-                print('<get_window_size> Error en leer mensaje')
-                continue
+                response =  ser.read_until(size = 4)
+                print(f"<get_window_size> response = [{response}]")
+                window_size  = unpack("i", response)
+                return window_size[0]
+            except: continue
