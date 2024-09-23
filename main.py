@@ -112,6 +112,7 @@ class MainWindow(pw.QMainWindow):
     def update_window_size(self, window):
         #Actualizar ventana de datos
         print("Update")
+        global data_window_size
         if receiver.set_window_size(window):
             data_window_size = window
         self.windowLabel.setText('Tamaño de ventana de datos es ' + str(data_window_size))
