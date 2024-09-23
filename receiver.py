@@ -72,13 +72,16 @@ def recieve_window_data():
     while True:
         if ser.in_waiting > 0:
             try:
-                response = ser.read_until(size = 8)
+                response = ser.read(8)
+                print(f"<recieve_window_data> response = [{response}]")
                 if b'END' in response:
                     print("<recieve_window_data> END received")
                     break
                 data = unpack("ff", response)
+                print(f"<recieve_window_data> data recieved temp = [{data[0]}], press = [{data[1]}]")
                 temp.append(data[0])
                 press.append(data[1]) 
+
 
             except: continue
 
@@ -93,7 +96,8 @@ def recieve_window_data():
     while True:
         if ser.in_waiting > 0:
             try:
-                response = ser.read_until(size = 8)
+                response = ser.read(8)
+                print(f"<recieve_window_data> response = [{response}]")
                 if b'END' in response:
                     print("<recieve_window_data> END received")
                     break
@@ -144,8 +148,9 @@ def get_window_size():
     while True:
         if ser.in_waiting > 0:
             try:
-                response =  ser.read_until(size = 4)
+                response = ser.read(4)
                 print(f"<get_window_size> response = [{response}]")
-                window_size  = unpack("i", response)
-                return window_size[0]
+                window_size  = int.from_bytes(response, "little")
+                print(f"<get_window_size> decoded window_size = [{window_size}]")
+                return window_size
             except: continue

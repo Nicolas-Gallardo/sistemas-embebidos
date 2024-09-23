@@ -562,7 +562,7 @@ void bme_read_window(int window) {
         float temp = (float)temp_info.temp / 100;
         float t_fine = temp_info.t_fine;
         press_adc = bme_press_adc();
-        float press = (float)bme_press_comp(press_adc, t_fine) / 1000;
+        float press = (float)bme_press_comp(press_adc, t_fine) / 100;
 
         temp_array[i] = temp;
         press_array[i] = press;
@@ -573,8 +573,8 @@ void bme_read_window(int window) {
         uart_write_bytes(UART_NUM, dataToSend, dataLen);
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
-    printf("<bme_read_window> finish raw data\n");
     uart_write_bytes(UART_NUM,"END\n",4);
+    printf("<bme_read_window> finish raw data\n");
 
     # if 0
     // N-MAX VALUES
@@ -598,14 +598,11 @@ void bme_read_window(int window) {
     // RMS
     printf("<bme_read_window> start rms data sending\n");
     uart_write_bytes(UART_NUM,"RMS\n",4);
-    vTaskDelay(pdMS_TO_TICKS(500));
     float temp_rms;
     float press_rms;
 
     temp_rms = calc_rms(temp_array, window);
     press_rms = calc_rms(press_array, window);
-
-    printf("<bme_read_window> temp_rms: %.2f, press_rms: %.2f\n", temp_rms, press_rms);
     // Send data
     float rms_data[2] = {temp_rms, press_rms};
 

@@ -19,7 +19,7 @@ class MainWindow(pw.QMainWindow):
         self.setGeometry(self.left, self.top, self.width, self.height)
 
         # Linea de input para el nuevo tamaño de ventana
-        windowLine = pw.QLineEdit(str(DATA_WINDOW_SIZE), self)
+        windowLine = pw.QLineEdit(str(data_window_size), self)
         # Validador de solo numeros
         windowLine.setValidator(QIntValidator())
 
@@ -29,7 +29,7 @@ class MainWindow(pw.QMainWindow):
         windowBtn.clicked.connect(lambda: self.update_window_size(int(windowLine.text())))
 
         # Label para mostrar el window_size actual
-        self.windowLabel = pw.QLabel('Tamaño de ventana de datos es ' + str(DATA_WINDOW_SIZE))
+        self.windowLabel = pw.QLabel('Tamaño de ventana de datos es ' + str(data_window_size))
 
         # Boton que pide datos
         requestBtn = pw.QPushButton('Solicitar datos', self)
@@ -43,22 +43,22 @@ class MainWindow(pw.QMainWindow):
 
         # Grafico para temperatura
         self.plotTemp = pg.PlotWidget()
-        self.plotTemp.plot(TEMP)
+        self.plotTemp.plot(temp)
         # Leyenda del grafico
         self.plotTemp.setTitle("Temperatura vs Tiempo")
         self.plotTemp.setLabel("left", "Temperatura (°C)")
         self.plotTemp.setLabel("bottom", "Tiempo (s)")
         # Grafico para presion
         self.plotPress = pg.PlotWidget()
-        self.plotPress.plot(PRESS)
+        self.plotPress.plot(press)
         # Leyenda del grafico
         self.plotPress.setTitle("Presión vs Tiempo")
         self.plotPress.setLabel("left", "Presión (hPa)")
         self.plotPress.setLabel("bottom", "Tiempo (s)")
 
         # Metricas para RMS
-        self.tempRMS = pw.QLabel('RMS de temperatura ' + str(TEMP_RMS))
-        self.pressRMS = pw.QLabel('RMS de presión ' + str(PRESS_RMS))
+        self.tempRMS = pw.QLabel('RMS de temperatura ' + str(temp_rms))
+        self.pressRMS = pw.QLabel('RMS de presión ' + str(press_rms))
 
         # Crear layouts
         mainLayout = pw.QVBoxLayout()
@@ -90,18 +90,14 @@ class MainWindow(pw.QMainWindow):
     def request(self):
         # Añadir los datos a TEMP, PRESS, TEMP_RMS y PRESS_RMS
         print("Request")
-        TEMP, PRESS, TEMP_RMS, PRESS_RMS = receiver.recieve_window_data()
-        print(f"temp: {TEMP}")
-        print(f"press: {PRESS}")
-        print(f"temp_rms: {TEMP_RMS}")
-        print(f"press_rms: {PRESS_RMS}")
+        temp, press, temp_rms, press_rms = receiver.recieve_window_data()
         self.update_plot()
                 
     
     @pyqtSlot()
     def update_plot(self):
-        self.plotTemp.plot(TEMP, list(range(0,DATA_WINDOW_SIZE)))
-        self.plotPress.plot(PRESS, list(range(0,DATA_WINDOW_SIZE)))
+        self.plotTemp.plot(temp, range(0,data_window_size))
+        self.plotPress.plot(press, range(0,data_window_size))
 
     @pyqtSlot()
     def end(self):
@@ -115,20 +111,20 @@ class MainWindow(pw.QMainWindow):
         #Actualizar ventana de datos
         print("Update")
         if receiver.set_window_size(window):
-            DATA_WINDOW_SIZE = window
-        self.windowLabel.setText('Tamaño de ventana de datos es ' + str(DATA_WINDOW_SIZE))
+            data_window_size = window
+        self.windowLabel.setText('Tamaño de ventana de datos es ' + str(data_window_size))
 
         
 #Variables globales
-DATA_WINDOW_SIZE = 10
-PRESS = [0, 10 , 20]
-PRESS_RMS = 0
-TEMP = [0, 15, 55]
-TEMP_RMS = 0
+data_window_size = 10
+press = [0, 10 , 20]
+press_rms = 0
+temp = [0, 15, 55]
+temp_rms = 0
 
 if __name__ == '__main__':
     receiver.start_conn()
-    DATA_WINDOW_SIZE = receiver.get_window_size()
+    data_window_size = receiver.get_window_size()
     app = pw.QApplication(sys.argv)
     window = MainWindow()
     window.show()
