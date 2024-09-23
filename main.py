@@ -92,16 +92,18 @@ class MainWindow(pw.QMainWindow):
         print("Request")
         global temp, press, temp_rms, press_rms
         temp, press, temp_rms, press_rms = receiver.recieve_window_data()
-        self.update_plot()
+        self.update_data()
                 
     
     @pyqtSlot()
-    def update_plot(self):
+    def update_data(self):
         time = range(0, data_window_size)
         self.plotTemp.clear()
         self.plotPress.clear()
         self.plotTemp.plot(time, temp)
         self.plotPress.plot(time, press)
+        self.tempRMS.setText('RMS de temperatura ' + str(temp_rms))
+        self.pressRMS.setText('RMS de presión ' + str(press_rms))
 
     @pyqtSlot()
     def end(self):
