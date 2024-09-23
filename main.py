@@ -127,7 +127,8 @@ TEMP = [0, 15, 55]
 TEMP_RMS = 0
 
 if __name__ == '__main__':
-    DATA_WINDOW_SIZE = receiver.start_conn()
+    receiver.start_conn()
+    DATA_WINDOW_SIZE = receiver.get_window_size()
     app = pw.QApplication(sys.argv)
     window = MainWindow()
     window.show()

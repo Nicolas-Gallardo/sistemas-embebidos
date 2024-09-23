@@ -3,7 +3,7 @@ from struct import pack, unpack
 import time
 
 # Se configura el puerto y el BAUD_Rate
-PORT = 'COM3'  # Esto depende del sistema operativo
+PORT = 'COM4'  # Esto depende del sistema operativo
 BAUD_RATE = 115200  # Debe coincidir con la configuracion de la ESP32
 
 ser = None
@@ -49,21 +49,14 @@ def start_conn():
     tamaño de la ventana"""
     global ser
     ser = serial.Serial(PORT, BAUD_RATE, timeout = 1)
+    print(f"<start_conn> starting connection in {ser}")
     # Se envia el mensaje de inicio de comunicacion
-    message = pack('6s','BEGIN\0'.encode())
-    send_message(message)
-    wait_message("OK")
-    while True:
-        if ser.in_waiting > 0:
-            try:
-                response = receive_response()
-                window_size  = unpack("i", response)
-                return window_size
-            except: continue
+    send_message(pack('8s','TESTING\0'.encode()))
+    if (wait_message("OK")): return True
+    else: False
 
 #Funciones Principales
-def recieve_window_data():
-
+def recieve_window_data(window_size):
     # Se envia la orden de recibir datos
     message = pack('8s','GETDATA\0'.encode())
     send_message(message)
@@ -78,17 +71,15 @@ def recieve_window_data():
     while True:
         if ser.in_waiting > 0:
             try:
-                response = receive_response()
+                response = ser.read_until(b'END',8)
                 if b'END' in response:
                     print("<recieve_window_data> END received")
                     break
                 data = unpack("ff", response)
                 temp.append(data[0])
-                press.append(data[1]) 
+                press.append(data[1])
 
-            except:
-                print('<recieve_window_data> Error en leer mensaje3')
-                continue
+            except: continue
 
     print(f"temperatura: {temp}\n presion: {press}")
 
@@ -98,11 +89,13 @@ def recieve_window_data():
     rms_temp = 0
     rms_press = 0
     # Se reciben los datos de RMS en un par de floats
-    """
     while True:
         if ser.in_waiting > 0:
             try:
-                response = receive_response()
+                response = ser.read_until(b'END',8)
+                if b'END' in response:
+                    print("<recieve_window_data> END received")
+                    break
                 data = unpack("ff", response)
                 rms_temp = data[0]
                 rms_press = data[1]
@@ -111,10 +104,8 @@ def recieve_window_data():
             except:
                 print('<recieve_window_data> error')
                 continue
-    """
+
     return temp, press, rms_temp, rms_press
-
-
 
 def set_window_size(size):
     # Se abre la conexion serial
@@ -131,12 +122,6 @@ def set_window_size(size):
     send_message(message)
     wait_message("SUNLIGHT")
 
-    # print("<set_window_size> Esperando OK")
-    # # Se espera el Ok
-    
-    # Se envia el mensaje de termino de comunicacion
-    #close_conn()
-
     return True
 
 def restart_ESP():
@@ -146,3 +131,21 @@ def restart_ESP():
     wait_message("OK")
 
     return True
+
+def get_window_size():
+    # Se envia la orden de recibir datos
+    message = pack('8s','GETWIND\0'.encode())
+    send_message(message)
+    if not wait_message("OK"): return
+
+    print("<get_window_size> waiting window size")
+    while True:
+        if ser.in_waiting > 0:
+            try:
+                response = ser.read_until(4)
+                window_size = unpack("i", response)
+                print(f"<get_window_size> window size = {window_size}")
+                return window_size
+            except:
+                print('<get_window_size> Error en leer mensaje')
+                continue

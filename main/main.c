@@ -634,7 +634,7 @@ int nvs_read_window_size() {
     printf("<nvs_read_window_size> Opening Non-Volatile Storage (NVS) handle...\n");
     nvs_handle_t nvs_handle;
     esp_err_t err = nvs_open("storage", NVS_READWRITE, &nvs_handle);
-    int32_t window_size = -1;
+    int window_size = -1;
     if (err != ESP_OK) {
         printf("<nvs_read_window_size> Error (%s) opening NVS handle!\n", esp_err_to_name(err));
         return window_size;
@@ -648,7 +648,7 @@ int nvs_read_window_size() {
         switch (err) {
             case ESP_OK:
                 printf("<nvs_read_window_size> Done\n");
-                printf("<nvs_read_window_size> Window size = %" PRIu32 "\n", window_size);
+                printf("<nvs_read_window_size> Window size = %d\n", window_size);
                 break;
             case ESP_ERR_NVS_NOT_FOUND:
                 printf("<nvs_read_window_size> The value is not initialized yet!\n");
@@ -659,7 +659,7 @@ int nvs_read_window_size() {
     }
     // Close
     nvs_close(nvs_handle);
-    return (int)window_size;
+    return window_size;
 }
 
 void nvs_set_window_size(int window_size) {
@@ -687,22 +687,6 @@ void nvs_set_window_size(int window_size) {
     }
 }
 
-void wait_conn(int window_size) {
-    char request[6];
-    printf("<wait_conn> waiting begin message\n");
-    while(1) {
-        int rLen = serial_read(request, 6);
-        if (rLen > 0) {
-            if (strcmp(request, "BEGIN") == 0) break;
-        }
-    }
-    uart_write_bytes(UART_NUM,"OK\n",3);
-    printf("<wait_conn> connected, sending window_size\n");
-    int temp = window_size;
-    const char *dataToSend = (const char *)temp;
-    uart_write_bytes(UART_NUM, dataToSend, sizeof(int)); 
-}
-
 void app_main(void) {
     // init bme688
     ESP_ERROR_CHECK(sensor_init());
@@ -717,18 +701,27 @@ void app_main(void) {
 
     int window_size = nvs_read_window_size();
 
-    wait_conn(window_size);
     // start program
     char request[8];
     printf("<app_main> waiting request\n");
     while(1) {
         int rLen = serial_read(request, 8);
         if (rLen > 0) {
-            printf("REQ : %s\n", request);
+            printf("<app_main> request: %s\n", request);
             if (strcmp(request, "GETDATA") == 0) {
                 printf("<app_main:GETDATA> window_size = %d\n", window_size);
                 uart_write_bytes(UART_NUM,"OK\n",3);
                 bme_read_window(window_size);
+            }
+            else if (strcmp(request, "GETWIND") == 0) {
+                uart_write_bytes(UART_NUM,"OK\n",3);
+                    printf("<wait_conn> window_size = [%d]\n", window_size);
+                    // [code][heap]----------[stack]
+                    // window_size : int == 0a 00 00 00 == 10
+                    // addr = &window_size : int* 
+                    // addr == bf 0e d2 ff bf 0e d2 ff
+                    const char *dataToSend = (const char *)&window_size;
+                    uart_write_bytes(UART_NUM, dataToSend, sizeof(int)); 
             }
             else if (strcmp(request, "SETWIND") == 0) {
                 char size_req_msg[128];
@@ -747,13 +740,14 @@ void app_main(void) {
                 uart_write_bytes(UART_NUM, confirm, strlen(confirm));
             }
             else if (strcmp(request, "RESTART") == 0) {
-                printf("Restart\n");
+                printf("<appmain> restart esp\n");
                 uart_write_bytes(UART_NUM,"OK\n",3);
-                break;
+                esp_restart();;
+            }
+            else if (strcmp(request, "TESTING") == 0) {
+                uart_write_bytes(UART_NUM,"OK\n",3);
             }
         }
     vTaskDelay(pdMS_TO_TICKS(1000));
-    }
-    printf("Restarting\n");
-    esp_restart();
+    } 
 }
