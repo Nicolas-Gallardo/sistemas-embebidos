@@ -34,6 +34,7 @@
 #define EXAMPLE_I2C_ACK_CHECK_DIS 0x0
 #define ACK_VAL 0x0
 #define NACK_VAL 0x1
+#define M_PI 3.14159
 
 #define REDIRECT_LOGS 1 // if redirect ESP log to another UART
 
@@ -502,6 +503,25 @@ uint32_t bme_press_adc() {
     return press_adc;
 }
 
+uint32_t bme_hum_adc(void) {
+    uint8_t tmp;
+
+    // Se obtienen los datos de humedad
+    uint8_t forced_hum_addr[] = {0x25, 0x26};
+
+    uint32_t hum_adc = 0;
+
+    // Datasheet[41]
+    // https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bme688-ds000.pdf#page=41
+
+    bme_i2c_read(I2C_NUM_0, &forced_hum_addr[0], &tmp, 1);
+    hum_adc = hum_adc | tmp << 8;
+    bme_i2c_read(I2C_NUM_0, &forced_hum_addr[2], &tmp, 1);
+    hum_adc = hum_adc | tmp;
+
+    return hum_adc;
+}
+
 // Function for sending things to UART1
 static int uart1_printf(const char *str, va_list ap) {
     char *buf;
@@ -694,6 +714,26 @@ void nvs_set_window_size(int window_size) {
         printf((err != ESP_OK) ? "Failed!\n" : "Done\n");
         // Close
         nvs_close(nvs_handle);
+    }
+}
+
+void calcularFFT(float *array, int size, float *array_re, float *array_im) {
+    for (int k = 0; k < size; k++) {
+        float real = 0;
+        float imag = 0;
+
+        for (int n = 0; n < size; n++) {
+            float angulo = 2 * M_PI * k * n / size;
+            float cos_angulo = cos(angulo);
+            float sin_angulo = -sin(angulo);
+
+            real += array[n] * cos_angulo;
+            imag += array[n] * sin_angulo;
+        }
+        real /= size;
+        imag /= size;
+        array_re[k] = real;
+        array_im[k] = imag;
     }
 }
 
