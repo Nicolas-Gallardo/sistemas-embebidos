@@ -516,7 +516,7 @@ uint32_t bme_hum_adc(void) {
 
     bme_i2c_read(I2C_NUM_0, &forced_hum_addr[0], &tmp, 1);
     hum_adc = hum_adc | tmp << 8;
-    bme_i2c_read(I2C_NUM_0, &forced_hum_addr[2], &tmp, 1);
+    bme_i2c_read(I2C_NUM_0, &forced_hum_addr[1], &tmp, 1);
     hum_adc = hum_adc | tmp;
 
     return hum_adc;
