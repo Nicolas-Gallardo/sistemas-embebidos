@@ -522,6 +522,79 @@ uint32_t bme_hum_adc(void) {
     return hum_adc;
 }
 
+int bme_hum_comp(uint32_t press_adc, int t_fine) {
+    // Datasheet[25]
+    // https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bme688-ds000.pdf#page=24
+
+    // Se obtienen los parametros de calibracion
+    uint8_t dummy = 0xE2
+    uint8_t addr_par_h1_lsb = (dummy & 0x0F), addr_par_p1_msb = 0xE3;
+    uint8_t addr_par_h2_lsb = (dummy & 0xF0) >> 4, addr_par_h2_msb = 0xE1;
+    uint8_t addr_par_h3_lsb = 0xE4;
+    uint8_t addr_par_h4_lsb = 0xE5;
+    uint8_t addr_par_h5_lsb = 0xE6;
+    uint8_t addr_par_h6_lsb = 0xE7;
+
+    uint16_t par_h1;
+    uint16_t par_h2;
+    uint16_t par_h3;
+    uint16_t par_h4;
+    uint16_t par_h5;
+    uint16_t par_h6;
+
+    uint8_t par_h1_lsb, par_h1_msb;
+    uint8_t par_h2_lsb, par_h2_msb;
+    uint8_t par_h3_lsb;
+    uint8_t par_h4_lsb;
+    uint8_t par_h5_lsb;
+    uint8_t par_h6_lsb;
+
+
+    bme_i2c_read(I2C_NUM_0, &addr_par_h1_lsb, &par_h1_lsb, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_h1_msb, &par_h1_msb, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_h2_lsb, &par_h2_lsb, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_h2_msb, &par_h2_msb, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_h3_lsb, &par_h3_lsb, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_h4_lsb, &par_h4_lsb, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_h5_lsb, &par_h5_lsb, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_h6_lsb, &par_h6_lsb, 1);
+
+
+    par_h1 = (par_h1_msb << 8) | par_h1_lsb;
+    par_h2 = (par_h2_msb << 8) | par_h2_lsb;
+    par_h3 = par_h3_lsb;
+    par_h4 = par_h4_lsb;
+    par_h5 = par_h5_lsb;
+    par_h6 = par_h6_lsb;
+
+
+    int64_t var1;
+    int64_t var2;
+    int64_t var3;
+    int64_t var4;
+    int64_t var5;
+    int64_t var6;
+
+    int hum_comp;
+
+    temp_scaled = (int32_t)temp_comp;
+    var1 = (int32_t)hum_adc - (int32_t)((int32_t)par_h1 << 4) –
+    (((temp_scaled * (int32_t)par_h3) / ((int32_t)100)) >> 1);
+    var2 = ((int32_t)par_h2 * (((temp_scaled *
+    (int32_t)par_h4) / ((int32_t)100)) +
+    (((temp_scaled * ((temp_scaled * (int32_t)par_h5) /
+    ((int32_t)100))) >> 6) / ((int32_t)100)) + ((int32_t)(1 << 14)))) >> 10;
+    var3 = var1 * var2;
+    var4 = (((int32_t)par_h6 << 7) +
+    ((temp_scaled * (int32_t)par_h7) / ((int32_t)100))) >> 4;
+    var5 = ((var3 >> 14) * (var3 >> 14)) >> 10;
+    var6 = (var4 * var5) >> 1;
+    hum_comp = (var3 + var6) >> 12;
+    hum_comp = (((var3 + var6) >> 10) * ((int32_t) 1000)) >> 12;
+
+    return hum_comp;
+}
+
 // Function for sending things to UART1
 static int uart1_printf(const char *str, va_list ap) {
     char *buf;
