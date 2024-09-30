@@ -383,7 +383,7 @@ uint32_t bme_temp_adc(void) {
 
 int bme_press_comp(uint32_t press_adc, int t_fine) {
     // Datasheet[24]
-    // https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bme688-ds000.pdf#page=24
+    // https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bme688-ds000.pdf#page=25
 
     // Se obtienen los parametros de calibracion
     uint8_t addr_par_p1_lsb = 0x8E, addr_par_p1_msb = 0x8F;
@@ -522,14 +522,15 @@ uint32_t bme_hum_adc(void) {
     return hum_adc;
 }
 
+
 int bme_hum_comp(uint32_t press_adc, int t_fine) {
     // Datasheet[25]
     // https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bme688-ds000.pdf#page=24
 
     // Se obtienen los parametros de calibracion
     uint8_t dummy = 0xE2
-    uint8_t addr_par_h1_lsb = (dummy & 0x0F), addr_par_p1_msb = 0xE3;
-    uint8_t addr_par_h2_lsb = (dummy & 0xF0) >> 4, addr_par_h2_msb = 0xE1;
+    uint8_t addr_par_h1_lsb = dummy, addr_par_h1_msb = 0xE3;
+    uint8_t addr_par_h2_lsb = dummy, addr_par_h2_msb = 0xE1;
     uint8_t addr_par_h3_lsb = 0xE4;
     uint8_t addr_par_h4_lsb = 0xE5;
     uint8_t addr_par_h5_lsb = 0xE6;
@@ -560,8 +561,8 @@ int bme_hum_comp(uint32_t press_adc, int t_fine) {
     bme_i2c_read(I2C_NUM_0, &addr_par_h6_lsb, &par_h6_lsb, 1);
 
 
-    par_h1 = (par_h1_msb << 8) | par_h1_lsb;
-    par_h2 = (par_h2_msb << 8) | par_h2_lsb;
+    par_h1 = (par_h1_msb << 4) | (par_h1_lsb & 0x0F) ;
+    par_h2 = (par_h2_msb << 4) | (par_h2_lsb & 0xF0) >> 4 ;
     par_h3 = par_h3_lsb;
     par_h4 = par_h4_lsb;
     par_h5 = par_h5_lsb;
@@ -577,6 +578,7 @@ int bme_hum_comp(uint32_t press_adc, int t_fine) {
 
     int hum_comp;
 
+    // temp_comp es el valor obtenido
     temp_scaled = (int32_t)temp_comp;
     var1 = (int32_t)hum_adc - (int32_t)((int32_t)par_h1 << 4) –
     (((temp_scaled * (int32_t)par_h3) / ((int32_t)100)) >> 1);
