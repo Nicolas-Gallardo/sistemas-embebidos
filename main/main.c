@@ -544,9 +544,13 @@ uint32_t bme_gas_adc(void) {
 uint8_t bme_gas_range(void) {
     uint8_t tmp;
 
+    // Se obtienen los rangos de gases
     uint8_t forced_gas_range_addr = 0x2D;
 
     uint8_t gas_range = 0;
+
+    // Datasheet[42]
+    // https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bme688-ds000.pdf#page=42
 
     bme_i2c_read(I2C_NUM_0, &gas_range_addr, &tmp, 1);
     gas_range_adc = tmp & 0x0F;
