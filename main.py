@@ -13,8 +13,8 @@ class MainWindow(pw.QMainWindow):
         self.title = 'Visualizador información de BME'
         self.left = 50
         self.top = 50
-        self.width = 600
-        self.height = 700
+        self.width = 700
+        self.height = 800
         self.setWindowTitle(self.title)
         self.setGeometry(self.left, self.top, self.width, self.height)
 
@@ -60,14 +60,14 @@ class MainWindow(pw.QMainWindow):
         self.plotHum.plot(hum)
         # Leyenda del grafico
         self.plotHum.setTitle("Humedad vs Tiempo")
-        self.plotHum.setLabel("left", "Humedad (°C)")
+        self.plotHum.setLabel("left", "Humedad (r.H.)")
         self.plotHum.setLabel("bottom", "Tiempo (s)")
         # Grafico para co
         self.plotCO = pg.PlotWidget()
         self.plotCO.plot(co)
         # Leyenda del grafico
         self.plotCO.setTitle("Co vs Tiempo")
-        self.plotCO.setLabel("left", "Concentracion de CO (°C)")
+        self.plotCO.setLabel("left", "Concentracion de CO (ppm)")
         self.plotCO.setLabel("bottom", "Tiempo (s)")
 
         # Metricas para RMS
@@ -128,10 +128,20 @@ class MainWindow(pw.QMainWindow):
     
     @pyqtSlot()
     def request(self):
-        # Añadir los datos a TEMP, PRESS, TEMP_RMS y PRESS_RMS
         print("Request")
-        global temp, press, temp_rms, press_rms
-        temp, press, temp_rms, press_rms = receiver.recieve_window_data()
+        # Tomar los datos globales
+        global temp, temp_rms, temp_fft, temp_fp
+        global press, press_rms, press_fft, press_fp
+        global hum, hum_rms, hum_fft, hum_fp
+        global co, co_rms, co_fft, co_fp
+        
+        # Añadir los datos a sus respectivas variables
+        temp, temp_rms, temp_fft, temp_fp,
+        press, press_rms, press_fft, press_fp,
+        hum, hum_rms, hum_fft, hum_fp, 
+        co, co_rms, co_fft, co_fp = receiver.recieve_window_data()
+
+        #Actualizar la data
         self.update_data()
                 
     
@@ -140,10 +150,24 @@ class MainWindow(pw.QMainWindow):
         time = range(0, data_window_size)
         self.plotTemp.clear()
         self.plotPress.clear()
+        self.plotHum.clear()
+        self.plotCO.clear()
         self.plotTemp.plot(time, temp)
         self.plotPress.plot(time, press)
+        self.plotHum.plot(time, hum)
+        self.plotCO.plot(time, co)
         self.tempRMS.setText('RMS de temperatura ' + str(temp_rms))
         self.pressRMS.setText('RMS de presión ' + str(press_rms))
+        self.humRMS.setText('RMS de humadad ' + str(hum_rms))
+        self.coRMS.setText('RMS de concentracion de CO ' + str(co_rms))
+        self.tempFFT.setText('FFT de temperatura ' + str(temp_fft))
+        self.pressFFT.setText('FFT de presión ' + str(press_fft))
+        self.humFFT.setText('FFT de humadad ' + str(hum_fft))
+        self.coFFT.setText('FFT de concentracion de CO ' + str(co_fft))
+        self.tempFP.setText('Cinco peaks de temperatura ' + str(temp_fp))
+        self.pressFP.setText('Cinco peaks de presión ' + str(press_fp))
+        self.humFP.setText('Cinco peaks de humadad ' + str(hum_fp))
+        self.coFP.setText('Cinco peaks de concentracion de CO ' + str(co_fp))
 
     @pyqtSlot()
     def end(self):
