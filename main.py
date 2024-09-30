@@ -14,7 +14,7 @@ class MainWindow(pw.QMainWindow):
         self.left = 50
         self.top = 50
         self.width = 600
-        self.height = 450
+        self.height = 700
         self.setWindowTitle(self.title)
         self.setGeometry(self.left, self.top, self.width, self.height)
 
@@ -55,10 +55,38 @@ class MainWindow(pw.QMainWindow):
         self.plotPress.setTitle("Presión vs Tiempo")
         self.plotPress.setLabel("left", "Presión (hPa)")
         self.plotPress.setLabel("bottom", "Tiempo (s)")
+        # Grafico para humedad
+        self.plotHum = pg.PlotWidget()
+        self.plotHum.plot(hum)
+        # Leyenda del grafico
+        self.plotHum.setTitle("Humedad vs Tiempo")
+        self.plotHum.setLabel("left", "Humedad (°C)")
+        self.plotHum.setLabel("bottom", "Tiempo (s)")
+        # Grafico para co
+        self.plotCO = pg.PlotWidget()
+        self.plotCO.plot(co)
+        # Leyenda del grafico
+        self.plotCO.setTitle("Co vs Tiempo")
+        self.plotCO.setLabel("left", "Concentracion de CO (°C)")
+        self.plotCO.setLabel("bottom", "Tiempo (s)")
 
         # Metricas para RMS
         self.tempRMS = pw.QLabel('RMS de temperatura ' + str(temp_rms))
         self.pressRMS = pw.QLabel('RMS de presión ' + str(press_rms))
+        self.humRMS = pw.QLabel('RMS de humedad ' + str(hum_rms))
+        self.coRMS = pw.QLabel('RMS de concentracion de CO ' + str(co_rms))
+
+        # Metricas para FFT
+        self.tempFFT = pw.QLabel('FFT de temperatura ' + str(temp_fft))
+        self.pressFFT = pw.QLabel('FFT de presión ' + str(press_fft))
+        self.humFFT = pw.QLabel('FFT de humadad ' + str(hum_fft))
+        self.coFFT = pw.QLabel('FFT de concentracion de CO ' + str(co_fft))
+
+        # Metricas para five peaks
+        self.tempFP = pw.QLabel('Cinco peaks de temperatura ' + str(temp_fp))
+        self.pressFP = pw.QLabel('Cinco peaks de presión ' + str(press_fp))
+        self.humFP = pw.QLabel('Cinco peaks de humedad ' + str(hum_fp))
+        self.coFP = pw.QLabel('Cinco peaks de concentracion de CO ' + str(co_fp))
 
         # Crear layouts
         mainLayout = pw.QVBoxLayout()
@@ -73,9 +101,21 @@ class MainWindow(pw.QMainWindow):
         btnLayout.addWidget(requestBtn, 2, 0, 1, 2)
         btnLayout.addWidget(closeBtn, 3, 0, 1, 2)
         graphLayout.addWidget(self.plotTemp, 0, 0)
-        graphLayout.addWidget(self.plotPress, 0, 1)
         graphLayout.addWidget(self.tempRMS, 1, 0)
+        graphLayout.addWidget(self.tempFFT, 2, 0)
+        graphLayout.addWidget(self.tempFP, 3, 0)
+        graphLayout.addWidget(self.plotPress, 0, 1)
         graphLayout.addWidget(self.pressRMS, 1, 1)
+        graphLayout.addWidget(self.pressFFT, 2, 1)
+        graphLayout.addWidget(self.pressFP, 3, 1)
+        graphLayout.addWidget(self.plotHum, 4, 0)
+        graphLayout.addWidget(self.humRMS, 5, 0)
+        graphLayout.addWidget(self.humFFT, 6, 0)
+        graphLayout.addWidget(self.humFP, 7, 0)
+        graphLayout.addWidget(self.plotCO, 4, 1)
+        graphLayout.addWidget(self.coRMS, 5, 1)
+        graphLayout.addWidget(self.coFFT, 6, 1)
+        graphLayout.addWidget(self.coFP, 7, 1)
         
         # Agregar sublayouts al principal
         mainLayout.addLayout(btnLayout)
@@ -126,12 +166,24 @@ class MainWindow(pw.QMainWindow):
 data_window_size = 10
 press = []
 press_rms = 0
+press_fft = 0
+press_fp = 0
 temp = []
 temp_rms = 0
+temp_fft = 0
+temp_fp = 0
+hum = []
+hum_rms = 0
+hum_fft = 0
+hum_fp = 0
+co = []
+co_rms = 0
+co_fft = 0
+co_fp = 0
 
 if __name__ == '__main__':
     receiver.start_conn()
-    tries = 0;
+    tries = 0
     while True:
         if tries > 3:
             break
