@@ -634,51 +634,30 @@ int bme_hum_comp(uint32_t press_adc, uint32 temp_comp) {
 }
 
 int bme_gas_comp(uint32_t press_adc, uint32 temp_comp) {
-    // Datasheet[25]
-    // https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bme688-ds000.pdf#page=25
+    // Datasheet[29]
+    // https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bme688-ds000.pdf#page=29
 
     // Se obtienen los parametros de calibracion
     // Pregunta: Está bien hacer esto? Duda pq en la hoja sale como Field
-    uint8_t addr_par_gas_adc_0_lsb = 0x2D, addr_par_gas_adc_0_msb = 0x2C;
-    uint8_t addr_par_gas_adc_1_lsb = 0x3E, addr_par_gas_adc_1_msb = 0x3D;
-    uint8_t addr_par_gas_adc_2_lsb = 0x4F, addr_par_gas_adc_2_msb = 0x4E;
-    uint8_t addr_par_gas_range_0_lsb = 0x2D;
-    uint8_t addr_par_gas_range_1_lsb = 0x3E;
-    uint8_t addr_par_gas_range_2_lsb = 0x4F;
+    uint8_t addr_par_gas_adc_lsb = 0x2D, addr_par_gas_adc_msb = 0x2C;
 
-    uint16_t par_gas_adc_0;
-    uint16_t par_gas_adc_1;
-    uint16_t par_gas_adc_2;
-    uint16_t par_gas_range_0;
-    uint16_t par_gas_range_1;
-    uint16_t par_gas_range_2;
+    uint8_t addr_par_gas_range_lsb = 0x2D;
 
 
-    uint8_t par_gas_adc_0_lsb, par_gas_adc_0_msb;
-    uint8_t par_gas_adc_1_lsb, par_gas_adc_1_msb;
-    uint8_t par_gas_adc_2_lsb, par_gas_adc_2_msb;
-    uint8_t par_gas_range_0_lsb;
-    uint8_t par_gas_range_1_lsb;
-    uint8_t par_gas_range_2_lsb;
+    uint16_t gas_adc;
+
+    uint16_t gas_range;
 
 
-    bme_i2c_read(I2C_NUM_0, &addr_par_gas_adc_0_lsb, &par_gas_adc_0_lsb, 1);
-    bme_i2c_read(I2C_NUM_0, &addr_par_gas_adc_0_msb, &par_gas_adc_0_msb, 1);
-    bme_i2c_read(I2C_NUM_0, &addr_par_gas_adc_1_lsb, &par_gas_adc_1_lsb, 1);
-    bme_i2c_read(I2C_NUM_0, &addr_par_gas_adc_1_msb, &par_gas_adc_1_msb, 1);
-    bme_i2c_read(I2C_NUM_0, &addr_par_gas_adc_2_lsb, &par_gas_adc_2_lsb, 1);
-    bme_i2c_read(I2C_NUM_0, &addr_par_gas_adc_2_msb, &par_gas_adc_2_msb, 1);
-    bme_i2c_read(I2C_NUM_0, &addr_par_gas_range_0_lsb, &par_gas_range_0_lsb, 1);
-    bme_i2c_read(I2C_NUM_0, &addr_par_gas_range_1_lsb, &par_gas_range_1_lsb, 1);
-    bme_i2c_read(I2C_NUM_0, &addr_par_gas_range_2_lsb, &par_gas_range_2_lsb, 1);
-    
+
+    uint8_t par_gas_adc_lsb, par_gas_adc_msb;
+    uint8_t par_gas_range_lsb;
+
+    bme_i2c_read(I2C_NUM_0, &addr_par_gas_adc_lsb, &par_gas_adc_lsb, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_gas_range_lsb, &par_gas_range_lsb, 1);
     // Pregunta: cuanto shiftear
-    par_gas_adc_0 = (par_gas_adc_0_msb << 8) | (par_gas_adc_0_msb & 0xC0);
-    par_gas_adc_1 = (par_gas_adc_1_msb << 8) | (par_gas_adc_1_msb & 0xC0);
-    par_gas_adc_2 = (par_gas_adc_2_msb << 8) | (par_gas_adc_2_msb & 0xC0);
-    par_gas_range_0 = (par_gas_range_0_lsb & 0x0F);
-    par_gas_range_1 = (par_gas_range_0_lsb & 0x0F);
-    par_gas_range_2 = (par_gas_range_0_lsb & 0x0F);
+    gas_range = (par_gas_adc_0_msb << 8) | (par_gas_adc_0_msb & 0xC0);
+    gas_adc = (par_gas_range_0_lsb & 0x0F);
 
     uint32_t var1 = UINT32_C(262144) >> gas_range;
     int32_t var2 = (int32_t) gas_adc - INT32_C(512);
