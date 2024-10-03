@@ -90,8 +90,9 @@ class MainWindow(pw.QMainWindow):
     def request(self):
         # Añadir los datos a TEMP, PRESS, TEMP_RMS y PRESS_RMS
         print("Request")
-        global temp, press, temp_rms, press_rms
-        temp, press, temp_rms, press_rms = receiver.recieve_window_data()
+        global temp, press, hum, gas, temp_rms, press_rms, hum_rms, gas_rms
+        temp, press, hum, gas, temp_rms, press_rms, hum_rms, gas_rms = receiver.recieve_window_data()
+        #temp, press, temp_rms, press_rms = receiver.recieve_window_data()
         self.update_data()
                 
     
@@ -128,6 +129,10 @@ press = []
 press_rms = 0
 temp = []
 temp_rms = 0
+hum = []
+hum_rms = 0
+gas = []
+gas_rms = 0
 
 if __name__ == '__main__':
     receiver.start_conn()

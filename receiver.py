@@ -65,7 +65,7 @@ def recieve_window_data():
     print("<recieve_window_data> wait raw data")
     wait_message("RAW")
     
-    press, temp = [], []
+    press, temp, hum, gas = [], [], [], []
     # Se reciben los datos en pares de floats
     print("<recieve_window_data> waiting data")
     ser.flush()
@@ -77,21 +77,24 @@ def recieve_window_data():
                 if b'END' in response:
                     print("<recieve_window_data> END received")
                     break
-                data = unpack("ff", response)
-                print(f"<recieve_window_data> data recieved temp = [{data[0]}], press = [{data[1]}]")
+                #data = unpack("ff", response)
+                data = unpack("ffff", response)
+                print(f"<recieve_window_data> data recieved temp = [{data[0]}], press = [{data[1]}], hum = [{data[2]}], gas = [{data[3]}]")
+                #print(f"<recieve_window_data> data recieved temp = [{data[0]}], press = [{data[1]}]")
                 temp.append(data[0])
-                press.append(data[1]) 
-
-
+                press.append(data[1])
+                hum.append(data[2])
+                gas.append(data[3]) 
             except: continue
 
-    print(f"temperatura: {temp}\n presion: {press}")
-
+    print(f"temperatura: {temp}\n presion: {press}\n humedad: {hum}\n gas: {gas}")
     print("<recieve_window_data>")
     wait_message("RMS")
 
     rms_temp = 0
     rms_press = 0
+    rms_hum = 0
+    rms_gas = 0
     # Se reciben los datos de RMS en un par de floats
     while True:
         if ser.in_waiting > 0:
@@ -101,16 +104,20 @@ def recieve_window_data():
                 if b'END' in response:
                     print("<recieve_window_data> END received")
                     break
-                data = unpack("ff", response)
+                #data = unpack("ff", response)
+                data = unpack("ffff", response)
                 rms_temp = data[0]
                 rms_press = data[1]
-                print(f"<recieve_window_data> rms_temp: {rms_temp}, rms_press: {rms_press}")
+                rms_hum = data[2]
+                rms_gas = data[3]
+                print(f"<recieve_window_data> rms_temp: {rms_temp}, rms_press: {rms_press}, rms_hum: {rms_hum}, rms_gas: {rms_gas}")
+                #print(f"<recieve_window_data> rms_temp: {rms_temp}, rms_press: {rms_press}")
                 break
             except:
                 print('<recieve_window_data> error')
                 continue
 
-    return temp, press, rms_temp, rms_press
+    return temp, press, hum, gas, rms_temp, rms_press, rms_hum, rms_gas
 
 def set_window_size(size):
     # Se abre la conexion serial

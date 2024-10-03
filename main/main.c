@@ -526,7 +526,7 @@ uint32_t bme_gas_adc(void) {
     uint8_t tmp;
 
     // Se obtienen los datos de gases
-    uint8_t forced_gas_addr[] = {0x25, 0x26};
+    uint8_t forced_gas_addr[] = {0x2C, 0x2D};
 
     uint32_t gas_adc = 0;
 
@@ -534,20 +534,20 @@ uint32_t bme_gas_adc(void) {
     // https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bme688-ds000.pdf#page=42
 
     bme_i2c_read(I2C_NUM_0, &forced_gas_addr[0], &tmp, 1);
-    gas_adc = gas_adc | tmp << 2;
+    gas_adc = gas_adc | tmp << 8;
     bme_i2c_read(I2C_NUM_0, &forced_gas_addr[1], &tmp, 1);
-    gas_adc = gas_adc | (tmp & 0x03);
+    gas_adc = gas_adc | (tmp & 0xC0);
 
     return gas_adc;
 }
 
-uint8_t bme_gas_range(void) {
+uint32_t bme_gas_range(void) {
     uint8_t tmp;
 
     // Se obtienen los rangos de gases
     uint8_t forced_gas_range_addr = 0x2D;
 
-    uint8_t gas_range = 0;
+    uint32_t gas_range = 0;
 
     // Datasheet[42]
     // https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bme688-ds000.pdf#page=42
@@ -560,9 +560,9 @@ uint8_t bme_gas_range(void) {
 }
 
 
-int bme_hum_comp(uint32_t press_adc, int t_fine) {
+int bme_hum_comp(uint32_t press_adc, uint32 temp_comp) {
     // Datasheet[25]
-    // https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bme688-ds000.pdf#page=24
+    // https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bme688-ds000.pdf#page=25
 
     // Se obtienen los parametros de calibracion
     uint8_t dummy = 0xE2
@@ -598,8 +598,7 @@ int bme_hum_comp(uint32_t press_adc, int t_fine) {
     bme_i2c_read(I2C_NUM_0, &addr_par_h6_lsb, &par_h6_lsb, 1);
 
 
-    par_h1 = (par_h1_msb << 4) | (par_h1_lsb & 0x0F) ;
-    par_h2 = (par_h2_msb << 4) | (par_h2_lsb & 0xF0) >> 4 ;
+    par_h1 = (par_h1_msb << 4) | (par_h1_lsb & 0x0F) ;      // Pregunta: Pq se hace shift 4 veces y no 8
     par_h3 = par_h3_lsb;
     par_h4 = par_h4_lsb;
     par_h5 = par_h5_lsb;
@@ -632,6 +631,64 @@ int bme_hum_comp(uint32_t press_adc, int t_fine) {
     hum_comp = (((var3 + var6) >> 10) * ((int32_t) 1000)) >> 12;
 
     return hum_comp;
+}
+
+int bme_gas_comp(uint32_t press_adc, uint32 temp_comp) {
+    // Datasheet[25]
+    // https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bme688-ds000.pdf#page=25
+
+    // Se obtienen los parametros de calibracion
+    // Pregunta: Está bien hacer esto? Duda pq en la hoja sale como Field
+    uint8_t addr_par_gas_adc_0_lsb = 0x2D, addr_par_gas_adc_0_msb = 0x2C;
+    uint8_t addr_par_gas_adc_1_lsb = 0x3E, addr_par_gas_adc_1_msb = 0x3D;
+    uint8_t addr_par_gas_adc_2_lsb = 0x4F, addr_par_gas_adc_2_msb = 0x4E;
+    uint8_t addr_par_gas_range_0_lsb = 0x2D;
+    uint8_t addr_par_gas_range_1_lsb = 0x3E;
+    uint8_t addr_par_gas_range_2_lsb = 0x4F;
+
+    uint16_t par_gas_adc_0;
+    uint16_t par_gas_adc_1;
+    uint16_t par_gas_adc_2;
+    uint16_t par_gas_range_0;
+    uint16_t par_gas_range_1;
+    uint16_t par_gas_range_2;
+
+
+    uint8_t par_gas_adc_0_lsb, par_gas_adc_0_msb;
+    uint8_t par_gas_adc_1_lsb, par_gas_adc_1_msb;
+    uint8_t par_gas_adc_2_lsb, par_gas_adc_2_msb;
+    uint8_t par_gas_range_0_lsb;
+    uint8_t par_gas_range_1_lsb;
+    uint8_t par_gas_range_2_lsb;
+
+
+    bme_i2c_read(I2C_NUM_0, &addr_par_gas_adc_0_lsb, &par_gas_adc_0_lsb, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_gas_adc_0_msb, &par_gas_adc_0_msb, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_gas_adc_1_lsb, &par_gas_adc_1_lsb, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_gas_adc_1_msb, &par_gas_adc_1_msb, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_gas_adc_2_lsb, &par_gas_adc_2_lsb, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_gas_adc_2_msb, &par_gas_adc_2_msb, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_gas_range_0_lsb, &par_gas_range_0_lsb, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_gas_range_1_lsb, &par_gas_range_1_lsb, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_gas_range_2_lsb, &par_gas_range_2_lsb, 1);
+    
+    // Pregunta: cuanto shiftear
+    par_gas_adc_0 = (par_gas_adc_0_msb << 8) | (par_gas_adc_0_msb & 0xC0);
+    par_gas_adc_1 = (par_gas_adc_1_msb << 8) | (par_gas_adc_1_msb & 0xC0);
+    par_gas_adc_2 = (par_gas_adc_2_msb << 8) | (par_gas_adc_2_msb & 0xC0);
+    par_gas_range_0 = (par_gas_range_0_lsb & 0x0F);
+    par_gas_range_1 = (par_gas_range_0_lsb & 0x0F);
+    par_gas_range_2 = (par_gas_range_0_lsb & 0x0F);
+
+    uint32_t var1 = UINT32_C(262144) >> gas_range;
+    int32_t var2 = (int32_t) gas_adc - INT32_C(512);
+    var2 *= INT32_C(3);
+    var2 = INT32_C(4096) + var2;
+    /* multiplying 10000 then dividing then multiplying by 100 instead of multiplying by 1000000 to prevent
+    overflow */
+    calc_gas_res = (UINT32_C(10000) * var1) / (uint32_t)var2;
+    gas_res = calc_gas_res * 100;
+    
 }
 
 // Function for sending things to UART1
@@ -691,7 +748,11 @@ float *get_n_max(float array[], int len) {
 void bme_read_window(int window) {
     float temp_array[window];
     float press_array[window];
-    int dataLen = sizeof(float)*2;
+    float hum_array[window];
+    float gas_array[window];
+
+    //int dataLen = sizeof(float)*2;
+    int dataLen = sizeof(float)*4;
     const char* dataToSend;
     // RAW DATA WINDOW
     printf("<bme_read_window> start raw data reading and sending\n");
@@ -699,6 +760,10 @@ void bme_read_window(int window) {
     for (int i = 0; i < window; i++) {
         uint32_t temp_adc = 0;
         uint32_t press_adc = 0;
+        uint32_t hum_adc = 0;
+        uint32_t gas_adc = 0;
+        uint32_t gas_range = 0;
+        
         TempInfo temp_info;
 
         bme_forced_mode();
@@ -708,6 +773,9 @@ void bme_read_window(int window) {
         int t_fine = temp_info.t_fine;
         press_adc = bme_press_adc();
         float press = (float)bme_press_comp(press_adc, t_fine) / 100;
+
+        hum_adc = bme_hum_adc();
+        hum = bme_hum_comp(bme_hum, t_fine); // Preguntar: usar t_fine o temp?
 
         temp_array[i] = temp;
         press_array[i] = press;
