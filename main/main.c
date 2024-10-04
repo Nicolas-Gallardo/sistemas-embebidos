@@ -34,7 +34,6 @@
 #define EXAMPLE_I2C_ACK_CHECK_DIS 0x0
 #define ACK_VAL 0x0
 #define NACK_VAL 0x1
-#define M_PI 3.14159
 
 #define REDIRECT_LOGS 1 // if redirect ESP log to another UART
 
@@ -330,6 +329,27 @@ int bme_check_forced_mode(void) {
           tmp5 == 0b01010101);
 }
 
+uint32_t bme_temp_adc(void) {
+  uint8_t tmp;
+
+  // Se obtienen los datos de temperatura
+  uint8_t forced_temp_addr[] = {0x22, 0x23, 0x24};
+
+  uint32_t temp_adc = 0;
+
+  // Datasheet[41]
+  // https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bme688-ds000.pdf#page=41
+
+  bme_i2c_read(I2C_NUM_0, &forced_temp_addr[0], &tmp, 1);
+  temp_adc = temp_adc | tmp << 12;
+  bme_i2c_read(I2C_NUM_0, &forced_temp_addr[1], &tmp, 1);
+  temp_adc = temp_adc | tmp << 4;
+  bme_i2c_read(I2C_NUM_0, &forced_temp_addr[2], &tmp, 1);
+  temp_adc = temp_adc | (tmp & 0xf0) >> 4;
+
+  return temp_adc;
+}
+
 TempInfo bme_temp_comp(uint32_t temp_adc) {
   // Datasheet[23]
   // https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bme688-ds000.pdf#page=23
@@ -385,27 +405,6 @@ uint32_t bme_press_adc() {
   press_adc = press_adc | (tmp & 0xf0) >> 4;
 
   return press_adc;
-}
-
-uint32_t bme_temp_adc(void) {
-  uint8_t tmp;
-
-  // Se obtienen los datos de temperatura
-  uint8_t forced_temp_addr[] = {0x22, 0x23, 0x24};
-
-  uint32_t temp_adc = 0;
-
-  // Datasheet[41]
-  // https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bme688-ds000.pdf#page=41
-
-  bme_i2c_read(I2C_NUM_0, &forced_temp_addr[0], &tmp, 1);
-  temp_adc = temp_adc | tmp << 12;
-  bme_i2c_read(I2C_NUM_0, &forced_temp_addr[1], &tmp, 1);
-  temp_adc = temp_adc | tmp << 4;
-  bme_i2c_read(I2C_NUM_0, &forced_temp_addr[2], &tmp, 1);
-  temp_adc = temp_adc | (tmp & 0xf0) >> 4;
-
-  return temp_adc;
 }
 
 int bme_press_comp(uint32_t press_adc, int t_fine) {
@@ -536,12 +535,14 @@ int bme_hum_comp(uint32_t hum_adc, uint32_t temp_comp) {
   // https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bme688-ds000.pdf#page=25
 
   // Se obtienen los parametros de calibracion
-  uint8_t dummy = 0xE2 uint8_t addr_par_h1_lsb = dummy, addr_par_h1_msb = 0xE3;
+  uint8_t dummy = 0xE2;
+  uint8_t addr_par_h1_lsb = dummy, addr_par_h1_msb = 0xE3;
   uint8_t addr_par_h2_lsb = dummy, addr_par_h2_msb = 0xE1;
   uint8_t addr_par_h3_lsb = 0xE4;
   uint8_t addr_par_h4_lsb = 0xE5;
   uint8_t addr_par_h5_lsb = 0xE6;
   uint8_t addr_par_h6_lsb = 0xE7;
+  uint8_t addr_par_h7_lsb = 0xE8;
 
   uint16_t par_h1;
   uint16_t par_h2;
@@ -549,6 +550,7 @@ int bme_hum_comp(uint32_t hum_adc, uint32_t temp_comp) {
   uint16_t par_h4;
   uint16_t par_h5;
   uint16_t par_h6;
+  uint16_t par_h7;
 
   uint8_t par_h1_lsb, par_h1_msb;
   uint8_t par_h2_lsb, par_h2_msb;
@@ -556,6 +558,7 @@ int bme_hum_comp(uint32_t hum_adc, uint32_t temp_comp) {
   uint8_t par_h4_lsb;
   uint8_t par_h5_lsb;
   uint8_t par_h6_lsb;
+  uint8_t par_h7_lsb;
 
   bme_i2c_read(I2C_NUM_0, &addr_par_h1_lsb, &par_h1_lsb, 1);
   bme_i2c_read(I2C_NUM_0, &addr_par_h1_msb, &par_h1_msb, 1);
@@ -565,14 +568,17 @@ int bme_hum_comp(uint32_t hum_adc, uint32_t temp_comp) {
   bme_i2c_read(I2C_NUM_0, &addr_par_h4_lsb, &par_h4_lsb, 1);
   bme_i2c_read(I2C_NUM_0, &addr_par_h5_lsb, &par_h5_lsb, 1);
   bme_i2c_read(I2C_NUM_0, &addr_par_h6_lsb, &par_h6_lsb, 1);
+  bme_i2c_read(I2C_NUM_0, &addr_par_h7_lsb, &par_h7_lsb, 1);
 
   // Pregunta: Pq se hace shift 4 veces y no 8
+  // OwO: par_h1 y par_h2 comparten el registro de 8 bits
   par_h1 = (par_h1_msb << 4) | (par_h1_lsb & 0x0F);
-  par_h1 = (par_h1_msb << 4) | (par_h1_lsb & 0xF0) >> 4;
+  par_h2 = (par_h2_msb << 4) | (par_h1_lsb & 0xF0) >> 4;
   par_h3 = par_h3_lsb;
   par_h4 = par_h4_lsb;
   par_h5 = par_h5_lsb;
   par_h6 = par_h6_lsb;
+  par_h7 = par_h7_lsb;
 
   int64_t var1;
   int64_t var2;
@@ -584,22 +590,17 @@ int bme_hum_comp(uint32_t hum_adc, uint32_t temp_comp) {
   int hum_comp;
 
   // temp_comp es el valor obtenido
-  temp_scaled = (int32_t)temp_comp;
-  var1 = (int32_t)hum_adc -
-         (int32_t)((int32_t)par_h1 << 4) – (
-             ((temp_scaled * (int32_t)par_h3) / ((int32_t)100)) >> 1);
-  var2 =
-      ((int32_t)par_h2 *
-       (((temp_scaled * (int32_t)par_h4) / ((int32_t)100)) +
-        (((temp_scaled * ((temp_scaled * (int32_t)par_h5) / ((int32_t)100))) >>
-          6) /
-         ((int32_t)100)) +
-        ((int32_t)(1 << 14)))) >>
-      10;
+  int32_t temp_scaled = (int32_t)temp_comp;
+  var1 = (int32_t)hum_adc - (int32_t)((int32_t)par_h1 << 4) 
+    - (((temp_scaled * (int32_t)par_h3) / ((int32_t)100)) >> 1);
+  var2 = ((int32_t)par_h2 * (((temp_scaled * 
+          (int32_t)par_h4) / ((int32_t)100)) + 
+          (((temp_scaled * ((temp_scaled * (int32_t)par_h5) / 
+          ((int32_t)100))) >> 6) / ((int32_t)100)) + 
+          ((int32_t)(1 << 14)))) >> 10;
   var3 = var1 * var2;
   var4 = (((int32_t)par_h6 << 7) +
-          ((temp_scaled * (int32_t)par_h7) / ((int32_t)100))) >>
-         4;
+          ((temp_scaled * (int32_t)par_h7) / ((int32_t)100))) >> 4;
   var5 = ((var3 >> 14) * (var3 >> 14)) >> 10;
   var6 = (var4 * var5) >> 1;
   hum_comp = (var3 + var6) >> 12;
@@ -638,35 +639,20 @@ uint32_t bme_gas_range(void) {
   // Datasheet[42]
   // https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bme688-ds000.pdf#page=42
 
-  bme_i2c_read(I2C_NUM_0, &gas_range_addr, &tmp, 1);
-  gas_range_adc = tmp & 0x0F;
+  bme_i2c_read(I2C_NUM_0, &forced_gas_range_addr, &tmp, 1);
+  gas_range = tmp & 0x0F;
 
   return gas_range;
 }
 
-int bme_gas_comp(void) // Preguntar: parametros
+int bme_gas_comp(uint32_t gas_adc, uint32_t gas_range) // Preguntar: parametros
 {
   // Datasheet[29]
   // https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bme688-ds000.pdf#page=29
 
   // Se obtienen los parametros de calibracion
   // Pregunta: Está bien hacer esto? Duda pq en la hoja sale como Field
-  uint8_t addr_par_gas_adc_lsb = 0x2D, addr_par_gas_adc_msb = 0x2C;
-
-  uint8_t addr_par_gas_range_lsb = 0x2D;
-
-  uint16_t gas_adc;
-
-  uint16_t gas_range;
-
-  uint8_t par_gas_adc_lsb, par_gas_adc_msb;
-  uint8_t par_gas_range_lsb;
-
-  bme_i2c_read(I2C_NUM_0, &addr_par_gas_adc_lsb, &par_gas_adc_lsb, 1);
-  bme_i2c_read(I2C_NUM_0, &addr_par_gas_range_lsb, &par_gas_range_lsb, 1);
-  // Pregunta: cuanto shiftear
-  gas_range = (par_gas_adc_0_msb << 8) | (par_gas_adc_0_msb & 0xC0);
-  gas_adc = (par_gas_range_0_lsb & 0x0F);
+  // OwO: son los mismos gas adc y gas_range
 
   uint32_t var1 = UINT32_C(262144) >> gas_range; // Preguntar
   int32_t var2 = (int32_t)gas_adc - INT32_C(512);
@@ -674,8 +660,9 @@ int bme_gas_comp(void) // Preguntar: parametros
   var2 = INT32_C(4096) + var2;
   /* multiplying 10000 then dividing then multiplying by 100 instead of
   multiplying by 1000000 to prevent overflow */
-  calc_gas_res = (UINT32_C(10000) * var1) / (uint32_t)var2;
-  gas_res = calc_gas_res * 100;
+  uint32_t calc_gas_res = (UINT32_C(10000) * var1) / (uint32_t)var2;
+  uint32_t gas_res = calc_gas_res * 100;
+  return gas_res;
 }
 
 // Function for sending things to UART1
@@ -763,12 +750,13 @@ void bme_read_window(int window) {
     float press = (float)bme_press_comp(press_adc, t_fine) / 100;
 
     hum_adc = bme_hum_adc();
-    hum = bme_hum_comp(bme_hum, t_fine); // Preguntar: usar t_fine o temp?
+    // Preguntar: usar t_fine o temp?
+    // OwO: Hum pide temp_comp, corresponde a temp en la estructura
+    float hum = (float)bme_hum_comp(hum_adc, temp); 
 
     gas_adc = bme_gas_adc();
     gas_range = bme_gas_range();
-
-    gas = bme_gas_comp();
+    float gas = (float)bme_gas_comp(gas_adc, gas_range);
 
     temp_array[i] = temp;
     press_array[i] = press;
@@ -786,22 +774,22 @@ void bme_read_window(int window) {
   printf("<bme_read_window> finish raw data\n");
 
 #if 0
-    // N-MAX VALUES
-    uart_write_bytes(UART_NUM,"MAX\0",4);
-    int n_max = 5;
-    int maxLen = sizeof(float)*n_max;
+  // N-MAX VALUES
+  uart_write_bytes(UART_NUM,"MAX\0",4);
+  int n_max = 5;
+  int maxLen = sizeof(float)*n_max;
 
-    float *temp_max = get_n_max(temp_array, n_max);
-    float *press_max = get_n_max(press_array, n_max);
+  float *temp_max = get_n_max(temp_array, n_max);
+  float *press_max = get_n_max(press_array, n_max);
 
-    // Send data
-    dataToSend = (const char*)temp_max;
-    uart_write_bytes(UART_NUM, dataToSend, maxLen);
-    dataToSend = (const char*)press_max;
-    uart_write_bytes(UART_NUM, dataToSend, maxLen);
+  // Send data
+  dataToSend = (const char*)temp_max;
+  uart_write_bytes(UART_NUM, dataToSend, maxLen);
+  dataToSend = (const char*)press_max;
+  uart_write_bytes(UART_NUM, dataToSend, maxLen);
 
-    free(temp_max);
-    free(press_max);
+  free(temp_max);
+  free(press_max);
 #endif
 
   // RMS
@@ -812,8 +800,10 @@ void bme_read_window(int window) {
 
   temp_rms = calc_rms(temp_array, window);
   press_rms = calc_rms(press_array, window);
+  hum_rms = calc_rms(hum_array, window);
+  gas_rms = calc_rms(gas_array, window);
   // Send data
-  float rms_data[2] = {temp_rms, press_rms};
+  float rms_data[4] = {temp_rms, press_rms, hum_rms, gas_rms};
 
   dataToSend = (const char *)rms_data;
   uart_write_bytes(UART_NUM, dataToSend, dataLen);
@@ -919,20 +909,7 @@ void calcularFFT(float *array, int size, float *array_re, float *array_im) {
   }
 }
 
-void app_main(void) {
-  // init bme688
-  ESP_ERROR_CHECK(sensor_init());
-  bme_get_chipid();
-  bme_softreset();
-  bme_get_mode();
-  bme_forced_mode();
-  //
-  nvs_init();
-  // setup uart
-  uart_setup();
-
-  int window_size = nvs_read_window_size();
-  printf("<app_main> window size = %d\n", window_size);
+void main_loop(void) {
   // start program
   char request[8];
   printf("<app_main> waiting request\n");
@@ -979,4 +956,22 @@ void app_main(void) {
     }
     vTaskDelay(pdMS_TO_TICKS(1000));
   }
+}
+
+void app_main(void) {
+  // init bme688
+  ESP_ERROR_CHECK(sensor_init());
+  bme_get_chipid();
+  bme_softreset();
+  bme_get_mode();
+  bme_forced_mode();
+  //
+  nvs_init();
+  // setup uart
+  uart_setup();
+
+  int window_size = nvs_read_window_size();
+  printf("<app_main> window size = %d\n", window_size);
+  
+  main_loop();
 }
