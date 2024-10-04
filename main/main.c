@@ -711,12 +711,26 @@ float calc_rms(float array[], int len) {
   return sqrtf(sum / len);
 }
 
-float *get_n_max(float array[], int len) {
-  float *max_elem = malloc(sizeof(float) * len);
+void replace_if_nmax(float x, float *max_elem, int n) {
+    for(int j = 0; j < n - 1; j++) {
+      if (x > max_elem[j]) {
+        memmove(&max_elem[j+1], &max_elem[j], (n-j-1)*sizeof(float));
+        max_elem[j] = x;
+        return;
+      }
+    }
+    if (x > max_elem[n-1]) {
+      max_elem[n-1] = x;
+    }
+}
+float *get_n_max(float array[], int size, int n) {
+  float *max_elem = malloc(sizeof(float) * n);
   if (!max_elem) {
     return NULL;
   }
-  // TODO
+  for(int i = 0; i < size; i++) {
+    replace_if_nmax(array[i], max_elem, n);
+  }
   return max_elem;
 }
 
@@ -793,24 +807,28 @@ void bme_read_window(int window) {
   uart_write_bytes(UART_NUM, "END_RAW__END_RAW", 16);
   printf("<bme_read_window> finish raw data\n");
 
-  #if 0
   // N-MAX VALUES
   uart_write_bytes(UART_NUM,"MAX\0",4);
   int n_max = 5;
-  int maxLen = sizeof(float)*n_max;
 
-  float *temp_max = get_n_max(temp_array, n_max);
-  float *press_max = get_n_max(press_array, n_max);
+  float *temp_max = get_n_max(temp_array, window, n_max);
+  float *press_max = get_n_max(press_array, window, n_max);
+  float *hum_max = get_n_max(temp_array, window, n_max);
+  float *gas_max = get_n_max(press_array, window, n_max);
 
   // Send data
-  dataToSend = (const char*)temp_max;
-  uart_write_bytes(UART_NUM, dataToSend, maxLen);
-  dataToSend = (const char*)press_max;
-  uart_write_bytes(UART_NUM, dataToSend, maxLen);
+  for(int i = 0; i < n_max; i++) {
+    float max_data[4] = {temp_max[i], press_max[i], hum_max[i], gas_max[i]};
+    dataToSend = (const char *)max_data;
+    uart_write_bytes(UART_NUM, dataToSend, dataLen);
+  }
 
   free(temp_max);
   free(press_max);
-  #endif
+  free(hum_max);
+  free(gas_max);
+  
+  uart_write_bytes(UART_NUM, "END_MAX__END_MAX", 16);
 
   // RMS
   printf("<bme_read_window> start rms data sending\n");
@@ -832,7 +850,28 @@ void bme_read_window(int window) {
 
   uart_write_bytes(UART_NUM, "END_RMS__END_RMS", 16);
 
-  printf("<bme_read_window> end reading window data");
+  // FFT
+  printf("<bme_read_window> start FFT data sending\n");
+  uart_write_bytes(UART_NUM, "FFT\n", 4);
+  float temp_fft[window];
+  float press_fft[window];
+  float hum_fft[window];
+  float gas_fft[window];
+
+  calc_fft(temp_array, window, temp_fft, NULL);
+  calc_fft(press_array, window, press_fft, NULL);
+  calc_fft(hum_array, window, hum_fft, NULL);
+  calc_fft(gas_array, window, gas_fft, NULL);
+  
+  for(int i = 0; i < window; i++) {
+    float fft_data[4] = {temp_fft[i], press_fft[i], hum_fft[i], gas_fft[i]};
+    dataToSend = (const char *)fft_data;
+    uart_write_bytes(UART_NUM, dataToSend, dataLen);
+  }
+
+  uart_write_bytes(UART_NUM, "END_FFT__END_FFT", 16);
+  uart_write_bytes(UART_NUM, "END_WIN\n", 8);
+  printf("<bme_read_window> end reading window data\n");
 }
 
 esp_err_t nvs_init(void) {
