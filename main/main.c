@@ -720,6 +720,26 @@ float *get_n_max(float array[], int len) {
   return max_elem;
 }
 
+void calc_fft(float *array, int size, float *array_re, float *array_im) {
+  for (int k = 0; k < size; k++) {
+    float real = 0;
+    float imag = 0;
+
+    for (int n = 0; n < size; n++) {
+      float angulo = 2 * M_PI * k * n / size;
+      float cos_angulo = cos(angulo);
+      float sin_angulo = -sin(angulo);
+
+      real += array[n] * cos_angulo;
+      imag += array[n] * sin_angulo;
+    }
+    real /= size;
+    imag /= size;
+    array_re[k] = real;
+    array_im[k] = imag;
+  }
+}
+
 void bme_read_window(int window) {
   float temp_array[window];
   float press_array[window];
@@ -770,10 +790,10 @@ void bme_read_window(int window) {
     uart_write_bytes(UART_NUM, dataToSend, dataLen);
     vTaskDelay(pdMS_TO_TICKS(1000));
   }
-  uart_write_bytes(UART_NUM, "END__RAW\n", 8);
+  uart_write_bytes(UART_NUM, "END_RAW__END_RAW", 16);
   printf("<bme_read_window> finish raw data\n");
 
-#if 0
+  #if 0
   // N-MAX VALUES
   uart_write_bytes(UART_NUM,"MAX\0",4);
   int n_max = 5;
@@ -790,13 +810,15 @@ void bme_read_window(int window) {
 
   free(temp_max);
   free(press_max);
-#endif
+  #endif
 
   // RMS
   printf("<bme_read_window> start rms data sending\n");
   uart_write_bytes(UART_NUM, "RMS\n", 4);
   float temp_rms;
   float press_rms;
+  float hum_rms;
+  float gas_rms;
 
   temp_rms = calc_rms(temp_array, window);
   press_rms = calc_rms(press_array, window);
@@ -808,8 +830,8 @@ void bme_read_window(int window) {
   dataToSend = (const char *)rms_data;
   uart_write_bytes(UART_NUM, dataToSend, dataLen);
 
-  char *confirm = "END\n";
-  uart_write_bytes(UART_NUM, confirm, strlen(confirm));
+  uart_write_bytes(UART_NUM, "END_RMS__END_RMS", 16);
+
   printf("<bme_read_window> end reading window data");
 }
 
@@ -889,36 +911,18 @@ void nvs_set_window_size(int window_size) {
   }
 }
 
-void calcularFFT(float *array, int size, float *array_re, float *array_im) {
-  for (int k = 0; k < size; k++) {
-    float real = 0;
-    float imag = 0;
+void comunication_loop(void) {
+  // start com
+  int window_size = nvs_read_window_size();
 
-    for (int n = 0; n < size; n++) {
-      float angulo = 2 * M_PI * k * n / size;
-      float cos_angulo = cos(angulo);
-      float sin_angulo = -sin(angulo);
-
-      real += array[n] * cos_angulo;
-      imag += array[n] * sin_angulo;
-    }
-    real /= size;
-    imag /= size;
-    array_re[k] = real;
-    array_im[k] = imag;
-  }
-}
-
-void main_loop(void) {
-  // start program
   char request[8];
-  printf("<app_main> waiting request\n");
+  printf("<com_loop> waiting request\n");
   while (1) {
     int rLen = serial_read(request, 8);
     if (rLen > 0) {
-      printf("<app_main> request: %s\n", request);
+      printf("<com_loop> request: %s\n", request);
       if (strcmp(request, "GETDATA") == 0) {
-        printf("<app_main:GETDATA> window_size = %d\n", window_size);
+        printf("<com_loop:GETDATA> window_size = %d\n", window_size);
         uart_write_bytes(UART_NUM, "OK\n", 3);
         bme_read_window(window_size);
       } else if (strcmp(request, "GETWIND") == 0) {
@@ -936,22 +940,23 @@ void main_loop(void) {
           if (rLen > 0)
             break;
         }
-        printf("<stwind> size_req_msg = [%s]\n", size_req_msg);
+        printf("<com_loop:SETWIND> size_req_msg = [%s]\n", size_req_msg);
         int size_req = atoi(size_req_msg);
-        printf("<stwind> size_req = [%d]\n", size_req);
+        printf("<com_loop:SETWIND> size_req = [%d]\n", size_req);
         nvs_set_window_size(size_req);
         int tmp2021 = nvs_read_window_size();
-        printf("<stwind> tmp2021 = [%d]\n", tmp2021);
+        printf("<com_loop:SETWIND> tmp2021 = [%d]\n", tmp2021);
         window_size = size_req;
         char *confirm = "SUNLIGHT";
         uart_write_bytes(UART_NUM, confirm, strlen(confirm));
       } else if (strcmp(request, "RESTART") == 0) {
-        printf("<appmain> restart esp\n");
         uart_write_bytes(UART_NUM, "OK\n", 3);
+        printf("<com_loop:RESTART> restarting esp\n");
         esp_restart();
         ;
       } else if (strcmp(request, "TESTING") == 0) {
         uart_write_bytes(UART_NUM, "OK\n", 3);
+        printf("<com_loop:TESTING> pong\n");
       }
     }
     vTaskDelay(pdMS_TO_TICKS(1000));
@@ -970,8 +975,5 @@ void app_main(void) {
   // setup uart
   uart_setup();
 
-  int window_size = nvs_read_window_size();
-  printf("<app_main> window size = %d\n", window_size);
-  
-  main_loop();
+  comunication_loop();
 }
