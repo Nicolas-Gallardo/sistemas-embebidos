@@ -63,14 +63,14 @@ class MainWindow(pw.QMainWindow):
         self.plotHum.plot(hum)
         # Leyenda del grafico
         self.plotHum.setTitle("Humedad vs Tiempo")
-        self.plotHum.setLabel("left", "Humedad (r.H.)")
+        self.plotHum.setLabel("left", "Humedad (%)")
         self.plotHum.setLabel("bottom", "Tiempo (s)")
         # Grafico para co
         self.plotCO = pg.PlotWidget()
         self.plotCO.plot(co)
         # Leyenda del grafico
         self.plotCO.setTitle("Co vs Tiempo")
-        self.plotCO.setLabel("left", "Concentracion de CO (ppm)")
+        self.plotCO.setLabel("left", "Concentracion de CO (kΩ)")
         self.plotCO.setLabel("bottom", "Tiempo (s)")
 
         # Metricas para RMS

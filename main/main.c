@@ -787,11 +787,11 @@ void bme_read_window(int window) {
     hum_adc = bme_hum_adc();
     // Preguntar: usar t_fine o temp?
     // OwO: Hum pide temp_comp, corresponde a temp en la estructura
-    float hum = (float)bme_hum_comp(hum_adc, temp); 
+    float hum = (float)bme_hum_comp(hum_adc, temp)/1000; 
 
     gas_adc = bme_gas_adc();
     gas_range = bme_gas_range();
-    float gas = (float)bme_gas_comp(gas_adc, gas_range);
+    float gas = (float)bme_gas_comp(gas_adc, gas_range)/1000;
 
     temp_array[i] = temp;
     press_array[i] = press;
