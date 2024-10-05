@@ -808,7 +808,7 @@ void bme_read_window(int window) {
   uart_write_bytes(UART_NUM, "END_RAW_END_RAW\n", 16);
 
   // N-MAX VALUES
-  printf("<bme_read_window> start sending max peaks \n")
+  printf("<bme_read_window> start sending max peaks\n");
   uart_write_bytes(UART_NUM,"MAX\n",4);
   int n_max = 5;
 
@@ -831,7 +831,7 @@ void bme_read_window(int window) {
   uart_write_bytes(UART_NUM, "END_MAX_END_MAX\n", 16);
 
   // RMS
-  printf("<bme_read_window> start sending rms \n")
+  printf("<bme_read_window> start sending rms\n");
   uart_write_bytes(UART_NUM, "RMS\n", 4);
 
   float temp_rms = calc_rms(temp_array, window);
