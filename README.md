@@ -4,13 +4,13 @@
 Aplicacion con python para recibir datos desde la esp32, con el sensor bme688. Los cuales son:
 - Temperatura
 - Presión
-- Humedad (TODO)
-- Concentración de CO (TODO)
+- Humedad
+- Concentración de CO
 
 Ademas de las metricas para c/u:
-- Cinco mayores peaks (TODO)
+- Cinco mayores peaks
 - RMS
-- FFT (TODO)
+- FFT
 
 Estos son mostrados en una app PyQT5.
 
