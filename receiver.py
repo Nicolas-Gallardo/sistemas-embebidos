@@ -75,8 +75,6 @@ def receive_raw():
                 gas.append(data[3])
             except:
                 continue
-
-    print(f"temperatura: {temp}\n presion: {press}\n humedad: {hum}\n gas: {gas}")
     return temp, press, hum, gas
 
 def receive_max():
@@ -107,6 +105,7 @@ def receive_max():
 
 def receive_rms():
     wait_message("RMS")
+    
     rms_temp = 0
     rms_press = 0
     rms_hum = 0

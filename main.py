@@ -82,7 +82,7 @@ class MainWindow(pw.QMainWindow):
         # Metricas para FFT
         self.tempFFT = pw.QLabel('FFT de temperatura ' + str(temp_fft))
         self.pressFFT = pw.QLabel('FFT de presión ' + str(press_fft))
-        self.humFFT = pw.QLabel('FFT de humadad ' + str(hum_fft))
+        self.humFFT = pw.QLabel('FFT de humedad ' + str(hum_fft))
         self.coFFT = pw.QLabel('FFT de concentracion de CO ' + str(co_fft))
 
         # Metricas para five peaks

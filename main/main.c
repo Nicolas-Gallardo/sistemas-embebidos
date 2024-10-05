@@ -760,12 +760,12 @@ void bme_read_window(int window) {
   float press_array[window];
   float hum_array[window];
   float gas_array[window];
-
+  printf("<bme_read_window> reading data window of size = %d\n", window);
 
   int dataLen = sizeof(float) * 4;
   const char *dataToSend;
   // RAW DATA WINDOW
-  printf("<bme_read_window> start raw data reading and sending\n");
+  printf("<bme_read_window> start reading and sending raw data\n");
   uart_write_bytes(UART_NUM, "RAW\n", 4);
   for (int i = 0; i < window; i++) {
     uint32_t temp_adc = 0;
@@ -807,10 +807,10 @@ void bme_read_window(int window) {
   }
   uart_write_bytes(UART_NUM, "END_RAW_END_RAW\n", 16);
 
-  printf("<bme_read_window> finish raw data\n");
   // N-MAX VALUES
-  int n_max = 5;
+  printf("<bme_read_window> start sending max peaks \n")
   uart_write_bytes(UART_NUM,"MAX\n",4);
+  int n_max = 5;
 
   float *temp_max = get_n_max(temp_array, window, n_max);
   float *press_max = get_n_max(press_array, window, n_max);
@@ -831,17 +831,13 @@ void bme_read_window(int window) {
   uart_write_bytes(UART_NUM, "END_MAX_END_MAX\n", 16);
 
   // RMS
-  printf("<bme_read_window> start rms data sending\n");
+  printf("<bme_read_window> start sending rms \n")
   uart_write_bytes(UART_NUM, "RMS\n", 4);
-  float temp_rms;
-  float press_rms;
-  float hum_rms;
-  float gas_rms;
 
-  temp_rms = calc_rms(temp_array, window);
-  press_rms = calc_rms(press_array, window);
-  hum_rms = calc_rms(hum_array, window);
-  gas_rms = calc_rms(gas_array, window);
+  float temp_rms = calc_rms(temp_array, window);
+  float press_rms = calc_rms(press_array, window);
+  float hum_rms = calc_rms(hum_array, window);
+  float gas_rms = calc_rms(gas_array, window);
   // Send data
   float rms_data[4] = {temp_rms, press_rms, hum_rms, gas_rms};
 
@@ -851,7 +847,7 @@ void bme_read_window(int window) {
   uart_write_bytes(UART_NUM, "END_RMS_END_RMS\n", 16);
 
   // FFT
-  printf("<bme_read_window> start FFT data sending\n");
+  printf("<bme_read_window> start sending fft\n");
   uart_write_bytes(UART_NUM, "FFT\n", 4);
 
   float *temp_fft = calc_fft(temp_array, window);
