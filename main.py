@@ -1,9 +1,12 @@
 import sys
-import receiver
+
 import PyQt5.QtWidgets as pw
-from PyQt5.QtGui import QIntValidator
-from PyQt5.QtCore import pyqtSlot
 import pyqtgraph as pg
+from PyQt5.QtCore import pyqtSlot
+from PyQt5.QtGui import QIntValidator
+
+import receiver
+
 # pip install pyqtgraph
 
 class MainWindow(pw.QMainWindow):
@@ -79,7 +82,7 @@ class MainWindow(pw.QMainWindow):
         # Metricas para FFT
         self.tempFFT = pw.QLabel('FFT de temperatura ' + str(temp_fft))
         self.pressFFT = pw.QLabel('FFT de presión ' + str(press_fft))
-        self.humFFT = pw.QLabel('FFT de humadad ' + str(hum_fft))
+        self.humFFT = pw.QLabel('FFT de humedad ' + str(hum_fft))
         self.coFFT = pw.QLabel('FFT de concentracion de CO ' + str(co_fft))
 
         # Metricas para five peaks
@@ -116,16 +119,16 @@ class MainWindow(pw.QMainWindow):
         graphLayout.addWidget(self.coRMS, 5, 1)
         graphLayout.addWidget(self.coFFT, 6, 1)
         graphLayout.addWidget(self.coFP, 7, 1)
-        
+
         # Agregar sublayouts al principal
         mainLayout.addLayout(btnLayout)
-        mainLayout.addLayout(graphLayout)        
+        mainLayout.addLayout(graphLayout)
 
         # Set layout
         widget = pw.QWidget()
         widget.setLayout(mainLayout)
         self.setCentralWidget(widget)
-    
+
     @pyqtSlot()
     def request(self):
         print("Request")
@@ -134,17 +137,18 @@ class MainWindow(pw.QMainWindow):
         global press, press_rms, press_fft, press_fp
         global hum, hum_rms, hum_fft, hum_fp
         global co, co_rms, co_fft, co_fp
-        
+
         # Añadir los datos a sus respectivas variables
-        temp, temp_rms, temp_fft, temp_fp,
-        press, press_rms, press_fft, press_fp,
-        hum, hum_rms, hum_fft, hum_fp, 
-        co, co_rms, co_fft, co_fp = receiver.recieve_window_data()
+        receiver.request_window_data()
+        temp, press, hum, co = receiver.receive_raw()
+        temp_fp, press_fp, hum_fp, co_fp = receiver.receive_max()
+        temp_rms, press_rms, hum_rms, co_rms = receiver.receive_rms()
+        temp_fft, press_fft, hum_fft, co_fft = receiver.receive_fft()
 
         #Actualizar la data
         self.update_data()
-                
-    
+
+
     @pyqtSlot()
     def update_data(self):
         time = range(0, data_window_size)
@@ -175,7 +179,7 @@ class MainWindow(pw.QMainWindow):
         print("Close")
         if receiver.restart_ESP():
             self.close()
-    
+
     @pyqtSlot()
     def update_window_size(self, window):
         #Actualizar ventana de datos
@@ -185,7 +189,7 @@ class MainWindow(pw.QMainWindow):
             data_window_size = window
         self.windowLabel.setText('Tamaño de ventana de datos es ' + str(data_window_size))
 
-        
+
 #Variables globales
 data_window_size = 10
 press = []
